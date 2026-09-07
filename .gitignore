@@ -22,7 +22,7 @@ ENV/
 secrets.yml
 profiles.yml
 
-# ❄️ Snowflake / dlt
+# ❄️ Snowflake / 🚚 dlt local files 
 .dlt/secrets.toml
 *.duckdb
 
