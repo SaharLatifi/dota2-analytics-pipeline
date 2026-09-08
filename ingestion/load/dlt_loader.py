@@ -6,7 +6,7 @@ def load_to_snowflake(
         data, 
         schema_name,
         table_name,
-        write_disposition="replace"
+        write_disposition
 ):
 
 
