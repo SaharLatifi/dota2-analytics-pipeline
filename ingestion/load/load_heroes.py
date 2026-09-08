@@ -24,7 +24,7 @@ def main():
         raise ValueError("SNOWFLAKE_HEROES_TABLE is missing from the .env file")
 
     # 2. Extract heroes
-    heroes_data = get_data()
+    heroes_data = get_data_heroes()
 
     if not heroes_data:
         raise ValueError("No heroes data was returned by the API")
