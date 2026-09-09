@@ -31,6 +31,7 @@ def main():
         if not constants_data:
             raise ValueError(f"No constants data was returned by the API for {res}")
 
+        # Some constants endpoints return a dict keyed by id; normalize to a list of records
         if isinstance(constants_data, dict):
             constants_data = list(constants_data.values())
     # 3. Run the pipeline
@@ -38,7 +39,7 @@ def main():
             pipeline_name,
             constants_data,
             schema_name,
-            table_name_fixed_part + "_" + res,
+            table_name_fixed_part + "_" + res,  # one table per resource
             "replace"
         )
 

@@ -18,7 +18,8 @@ def get_data(base_url, api_key, endpoint    ):
     if api_key:
         param['api_key'] = api_key
 
-  
+
+    # Errors are logged here and re-raised so the caller decides how to handle them
     try:
           response = requests.get(url, params=param,   timeout = 30)
           response.raise_for_status()

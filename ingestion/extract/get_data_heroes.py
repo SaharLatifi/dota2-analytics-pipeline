@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import sys
 from pathlib import Path
+# Make 'extract' importable no matter how/from where this script is run
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from extract.utils.api_client import get_data
 

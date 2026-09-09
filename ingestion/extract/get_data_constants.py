@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import sys
 from pathlib import Path
+# Make 'extract' importable no matter how/from where this script is run
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from extract.utils.api_client import get_data
 
@@ -24,7 +25,8 @@ def get_data_constants(resource_name):
     )
 
 
-    constants_data = get_data(base_url, api_key, "constants/" + resource_name)    
+    # OpenDota constants are namespaced by resource, e.g. constants/game_mode
+    constants_data = get_data(base_url, api_key, "constants/" + resource_name)
       
     if not constants_data:
         raise ValueError("OpenDota returned no constant data.")

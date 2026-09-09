@@ -17,6 +17,7 @@ from load.dlt_loader import load_to_snowflake
 
 
 def update_match_status(table_name, dlt_id, match_id, status, last_error=None):
+    # Records per-match load outcome in the control table for retries/auditing
     # Establish a connection to Snowflake   
     connection = snowflake.connector.connect(
         user=os.getenv("DESTINATION__SNOWFLAKE__CREDENTIALS__USERNAME"),
@@ -98,6 +99,7 @@ def main():
 
         load_info = None
         try:
+            # Per-match try/except so one failure doesn't stop the rest of the loop
              # 3. Run the pipeline
             load_info = load_to_snowflake(
                 pipeline_name,

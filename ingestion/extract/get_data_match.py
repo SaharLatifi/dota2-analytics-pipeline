@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import sys
 from pathlib import Path
+# Make 'extract' importable no matter how/from where this script is run
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from extract.utils.api_client import get_data
 
@@ -24,7 +25,8 @@ def get_data_match(match_id):
     )
 
 
-    match_data = get_data(base_url, api_key, "matches/" + str(match_id))    
+    # match_id may be an int, so cast it for URL concatenation
+    match_data = get_data(base_url, api_key, "matches/" + str(match_id))
       
     if not match_data:
         raise ValueError("OpenDota returned no match data.")

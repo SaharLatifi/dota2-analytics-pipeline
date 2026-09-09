@@ -17,6 +17,7 @@ def read_public_matches():
         role=os.getenv("DESTINATION__SNOWFLAKE__CREDENTIALS__ROLE")
     )
 
+    # Matches not yet successfully processed (new or previously failed), oldest first, capped per run
     query = """
     select m.match_id, m._dlt_id as dlt_id , s.status , s.attempts ,  d.load_id
     from public_matches m
