@@ -48,7 +48,8 @@ standalone_admin_password.txt
 Thumbs.db
 desktop.ini
 
-# 📝 Logs & temp files
+# 📝 Logs & some notes & temp files
 *.log
 *.tmp
 *.bak
+notes/
