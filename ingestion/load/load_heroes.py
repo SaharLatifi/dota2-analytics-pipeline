@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # Make the ingestion package importable regardless of how this script is invoked
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from extract.get_data_heroes import get_data
+from extract.get_data_heroes import get_data_heroes
 from load.dlt_loader import load_to_snowflake
 
 
