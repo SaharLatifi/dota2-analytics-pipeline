@@ -1,6 +1,7 @@
 
 
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -14,6 +15,28 @@ from ingestion.read.read_public_matches import read_public_matches
 from extract.get_data_match import get_data_match
 from load.dlt_loader import load_to_snowflake
 
+# Per-player fields keyed by hero/item/ability name — unbounded, grows with every
+# new hero/item OpenDota tracks. Without this, dlt flattens each into one column
+# per name ever seen (this is what produced ~4,900 columns on matches__players).
+# Serializing to a JSON string here stops dlt from flattening it further; fixed,
+# small-shape fields like benchmarks/max_hero_hit/life_state are left alone since
+# they don't grow over time.
+MATCH_PLAYER_JSON_FIELDS = [
+    "damage", "damage_taken", "killed", "killed_by",
+    "item_usage", "item_win", "purchase", "purchase_time", "first_purchase_time",
+    "ability_uses", "item_uses", "hero_hits",
+    "damage_targets", "ability_targets",
+    "damage_inflictor", "damage_inflictor_received",
+    "lane_pos",
+]
+
+
+def _collapse_dynamic_key_fields(players):
+    for player in players:
+        for field in MATCH_PLAYER_JSON_FIELDS:
+            if isinstance(player.get(field), dict):
+                player[field] = json.dumps(player[field])
+    return players
 
 
 def update_match_status(table_name, dlt_id, match_id, status, last_error=None):
@@ -96,6 +119,9 @@ def main():
         print(match_data)
         if not match_data:
             raise ValueError(f"No match data was returned by the API for {row.MATCH_ID}")
+
+        if isinstance(match_data.get("players"), list):
+            match_data["players"] = _collapse_dynamic_key_fields(match_data["players"])
 
         load_info = None
         try:

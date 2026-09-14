@@ -33,7 +33,11 @@ def main():
 
         # Some constants endpoints return a dict keyed by id; normalize to a list of records
         if isinstance(constants_data, dict):
-            constants_data = list(constants_data.values())
+            constants_data = [
+                {"id": key, "name": value}
+                for key, value in constants_data.items()
+                ]         
+                #constants_data = list(constants_data.values())
     # 3. Run the pipeline
         load_info = load_to_snowflake(
             pipeline_name,

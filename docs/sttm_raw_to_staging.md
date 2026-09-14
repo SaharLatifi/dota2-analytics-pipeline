@@ -92,24 +92,24 @@ ever join to this dimension, and there's no such mapping planned yet.
 Parent table only for this pass — dlt also creates child tables for nested
 item fields (see [Section 12](#12-not-yet-in-scope)).
 
+**Scoped to 3 columns for V1** — narrower than even the "Recommended First
+Version" in the original exploration notes, by deliberate choice. Items has
+a long tail of rarely-used fields (`qual`, `created`, `tier`, `mc`, `hc`,
+`cd`, `dmg_type`, `dispellable`, `bkbpierce`, etc.) that aren't needed yet;
+widening staging later is non-destructive, so starting lean here is fine.
+
 | Source column | Meaning | Staging transformation | Decision |
 |---|---|---|---|
 | `id` | Item id, matches `item_0`–`item_5` etc. on match players | Rename to `item_id` | Keep |
 | `dname` | Display name, e.g. `Blink Dagger` | Rename to `item_name` | Keep |
-| `qual` | Category, e.g. `component`, `consumable`, `artifact` | Rename to `item_quality` | Keep |
 | `cost` | Gold cost | Rename to `item_cost` | Keep |
-| `created` | Whether the item is assembled from components | Rename to `is_created_item`, cast boolean | Keep |
-| `tier` | Neutral-item tier, `NULL` for shop items | Rename to `neutral_item_tier` | Keep |
-| `behavior` | How the active ability is used | Rename to `item_behavior` | Keep |
-| `mc` | Mana cost | Rename to `mana_cost` | Keep |
-| `hc` | Health cost | Rename to `health_cost` | Keep |
-| `cd`, `cd__v_bool` | Cooldown; dlt split this into two columns because the source returns either a number or `false` | Normalize both into one `cooldown_seconds` (`NULL` when `cd__v_bool = false`) | Keep, normalized |
-| `dmg_type` | Damage type of the active effect | Rename to `damage_type` | Keep |
-| `dispellable` | Whether the effect can be dispelled | Rename to `is_dispellable`, cast boolean | Keep |
-| `bkbpierce` | Whether the effect pierces debuff immunity | Rename to `pierces_debuff_immunity`, cast boolean | Keep |
-| `img` | Icon path | Rename to `item_image_path` | Keep, low priority |
-| `notes`, `lore` | Descriptive text | Drop | Not used analytically |
 | `_dlt_id` / `_dlt_load_id` | dlt technical columns | Keep as `dlt_row_id` / `dlt_load_id` | Lineage only |
+
+**Deferred, not in V1 staging** (still available in raw if needed later):
+`qual`, `created`, `tier`, `behavior`, `mc`, `hc`, `cd`/`cd__v_bool`,
+`dmg_type`, `dispellable`, `bkbpierce`, `img`, `target_team`, `target_type`,
+`desc`. `notes` and `lore` are dropped entirely (descriptive text, not used
+analytically).
 
 ## 7. `raw.public_matches` → *No staging model*
 
@@ -126,25 +126,19 @@ stays available for pipeline monitoring/troubleshooting.
 | Source column | Meaning | Staging transformation | Decision |
 |---|---|---|---|
 | `match_id` | Unique match identifier | Cast to `NUMBER(38,0)` | Keep — business key |
-| `match_seq_num` | Valve's processing-order sequence number | Rename to `match_sequence_number` | Keep |
 | `radiant_win` | `TRUE` if Radiant won | Cast boolean; derive `winning_team` (`'radiant'`/`'dire'`) | Keep |
 | `duration` | Match length in seconds | Rename to `duration_seconds`; derive `duration_minutes` | Keep |
-| `pre_game_duration` | Seconds between game entry and official start | Rename to `pre_game_duration_seconds` | Keep |
 | `start_time` | Unix start timestamp | Convert to `started_at` (`TIMESTAMP_NTZ`); derive `match_date` | Keep |
 | `tower_status_radiant` / `_dire` | Bitmask of towers left standing | Rename to `radiant_tower_status_bitmask` / `dire_tower_status_bitmask` | Keep raw; decode later only if needed |
 | `barracks_status_radiant` / `_dire` | Bitmask of barracks left standing | Rename to `radiant_barracks_status_bitmask` / `dire_barracks_status_bitmask` | Keep raw; decode later only if needed |
-| `first_blood_time` | Seconds to first kill | Rename to `first_blood_time_seconds` | Keep |
+| `first_blood_time` | Seconds to first kill | Rename to `first_blood_time_seconds` | **Keep — dashboard KPI** ("Avg First Blood Time", Match Overview) |
 | `radiant_score` / `dire_score` | Team kill totals | Rename to `radiant_kill_count` / `dire_kill_count` | Keep |
-| `human_players` | Human player count (10 = full match) | Cast integer | Keep |
+| `human_players` | Human player count (10 = full match) | Cast integer | Keep — not shown on the dashboard, but this is the standard signal for excluding broken/incomplete matches before they reach any chart |
 | `lobby_type` | Numeric lobby code | Rename to `lobby_type_id` | Keep — joins to `stg_opendota__lobby_types` |
 | `game_mode` | Numeric game mode code | Rename to `game_mode_id` | Keep — joins to `stg_opendota__game_modes` |
 | `region` | Numeric region code | Rename to `region_id` | Keep — joins to `stg_opendota__regions` |
-| `cluster` | Technical server cluster | Rename to `server_cluster_id` | Keep in staging; usually excluded from marts |
-| `patch` | Patch identifier | Rename to `patch_id` | Keep |
-| `leagueid` | League/tournament id, usually `0`/null | Rename to `league_id` | Keep |
-| `series_id`, `series_type` | Pro match series info | Rename to `series_id`, `series_type_id` | Keep, optional |
-| `version` | OpenDota parse-format version | Rename to `parse_version` | Keep — used for quality/dedup logic later |
-| `flags`, `engine` | Internal technical values | Keep as raw integers | Low priority; usually excluded from marts |
+| `patch` | Patch identifier | Rename to `patch_id` | **Keep — dashboard filter** ("Patch", Match Overview) and Match Details column |
+| `version` | OpenDota parse-format version | Rename to `parse_version` | Keep — not shown on the dashboard, but required by the `int_matches__latest_complete` dedup logic (picks the preferred row per `match_id` alongside `is_parsed`) |
 | `replay_salt`, `replay_url` | Replay download info | Keep as raw strings | Excluded from analytical use |
 | `od_data__has_api` | OpenDota has basic API data | Rename to `has_api_data`, cast boolean | Keep |
 | `od_data__has_gcdata` | OpenDota has Game Coordinator data | Rename to `has_game_coordinator_data`, cast boolean | Keep |
@@ -158,6 +152,15 @@ verification of their real source/grain before use), and every
 `all_word_counts__*` column (chat word counts — flattening these into the
 match grain would cause uncontrolled schema growth; model separately as a
 key-value table later if chat analysis is ever needed).
+
+**Deferred — not needed by the current dashboard scope, but not deleted
+from raw:** `match_seq_num`, `pre_game_duration`, `cluster`, `leagueid`,
+`series_id`, `series_type`, `flags`, `engine`. None of these are used by
+any filter, KPI, or chart in the [dashboard wireframe](./dashboard_wireframe.md) —
+`cluster` in particular is a more granular technical identifier than
+`region`, which is what the dashboard actually filters/charts by. Revisit
+if a future page needs esports/league analysis (`leagueid`, `series_*`) or
+finer-grained server analysis (`cluster`).
 
 **Note carried over from raw:** `raw.matches` is append-only, so
 `stg_opendota__matches` can contain multiple rows per `match_id`.
