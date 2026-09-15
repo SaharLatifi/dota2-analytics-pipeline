@@ -95,6 +95,12 @@ sources:
         columns:
           - name: account_id
             description: Identifies the player; missing for players with a private profile
+          - name: rank_tier
+            description: >
+              This player's skill rank at the time of the match, encoded as a
+              two-digit number — tens digit is the bracket (1=Herald ... 8=Immortal),
+              ones digit is stars within that bracket. Split into rank_bracket_id
+              and rank_star in staging; rank_bracket_id joins to dim_rank_tier.
           - name: player_slot
             description: The player's slot in the match
             data_tests:
