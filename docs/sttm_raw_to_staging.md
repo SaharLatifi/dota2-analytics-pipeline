@@ -199,6 +199,7 @@ fact table should use `match_id`, never `_dlt_parent_id`.
 | Source column | Meaning | Staging transformation | Decision |
 |---|---|---|---|
 | `account_id` | Player identifier | Cast integer, nullable | Keep — missing for private profiles |
+| `rank_tier` | This player's skill rank at match time, encoded as a two-digit number (tens = bracket, ones = stars) | Split into `rank_bracket_id` (`floor(rank_tier / 10)`) and `rank_star` (`mod(rank_tier, 10)`) | **Keep — dashboard dependency.** `rank_bracket_id` joins to `dim_rank_tier` (mart-level, decodes 1=Herald...8=Immortal); needed for every "by Rank Tier" chart on Page 3 |
 | `player_slot` | Player's slot in the match | Cast integer | Keep |
 | `hero_id` | Hero played | Cast integer | Keep — joins to `stg_opendota__heroes.hero_id` |
 | `is_radiant` | Radiant or Dire | Cast boolean | Keep |
@@ -220,7 +221,7 @@ fact table should use `match_id`, never `_dlt_parent_id`.
 | `_dlt_parent_id` | Links to `matches._dlt_id` | Resolve to `match_id` via `stg_opendota__matches` | Keep, resolved |
 
 **Explicitly out of scope for V1 (kept in raw only, not brought to
-staging):** `personaname`, `rank_tier`, `gold`, `gold_spent`, item slots
+staging):** `personaname`, `gold`, `gold_spent`, item slots
 (`item_0`–`item_5`, `backpack_0`–`backpack_2`), purchase/ability/kill/ward
 logs, damage-target breakdowns, lane-position-over-time, and the
 `benchmarks` child table. These stay available in the raw layer and can be
