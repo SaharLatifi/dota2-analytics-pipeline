@@ -48,6 +48,9 @@ standalone_admin_password.txt
 Thumbs.db
 desktop.ini
 
+# 📊 Office lock files
+~$*
+
 # 📝 Logs & some notes & temp files
 *.log
 *.tmp

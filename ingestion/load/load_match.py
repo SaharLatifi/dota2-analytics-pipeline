@@ -116,7 +116,7 @@ def main():
     for row in df_matches.itertuples(index=False):
         print(row._fields)
         match_data = get_data_match(row.MATCH_ID)
-        print(match_data)
+       # print(match_data)
         if not match_data:
             raise ValueError(f"No match data was returned by the API for {row.MATCH_ID}")
 
