@@ -12,7 +12,7 @@ from load.dlt_loader import load_to_snowflake
 
 def main():
     # 1. Load environment variables
-    load_dotenv()
+    load_dotenv(Path(__file__).resolve().parents[2] / "dota2_dbt" / ".env")
 
     pipeline_name = "dota2_public_matches_pipeline"
     schema_name = os.getenv("SNOWFLAKE_SCHEMA")

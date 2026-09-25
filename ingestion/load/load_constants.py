@@ -12,7 +12,7 @@ from load.dlt_loader import load_to_snowflake
 
 def main():
     # 1. Load environment variables
-    load_dotenv()
+    load_dotenv(Path(__file__).resolve().parents[2] / "dota2_dbt" / ".env")
 
     pipeline_name = "dota2_constants_pipeline"
     schema_name = os.getenv("SNOWFLAKE_SCHEMA")
@@ -31,13 +31,16 @@ def main():
         if not constants_data:
             raise ValueError(f"No constants data was returned by the API for {res}")
 
-        # Some constants endpoints return a dict keyed by id; normalize to a list of records
+        # Dicts of objects (game_mode, lobby_type, items) already carry their id inside each object,
+        # so keep the objects. Dicts of plain values (region) only have the id as the key.
         if isinstance(constants_data, dict):
-            constants_data = [
-                {"id": key, "name": value}
-                for key, value in constants_data.items()
-                ]         
-                #constants_data = list(constants_data.values())
+            if all(isinstance(value, dict) for value in constants_data.values()):
+                constants_data = list(constants_data.values())
+            else:
+                constants_data = [
+                    {"id": key, "name": value}
+                    for key, value in constants_data.items()
+                ]
     # 3. Run the pipeline
         load_info = load_to_snowflake(
             pipeline_name,

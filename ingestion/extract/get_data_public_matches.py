@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from extract.utils.api_client import get_data
 
 
-load_dotenv()  # Load environment variables from .env file
+load_dotenv(Path(__file__).resolve().parents[2] / "dota2_dbt" / ".env")  # Load environment variables from .env file
 
 
 

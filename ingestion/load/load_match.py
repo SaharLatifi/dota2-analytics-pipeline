@@ -94,7 +94,7 @@ def update_match_status(table_name, dlt_id, match_id, status, last_error=None):
 
 def main():
     # 1. Load environment variables
-    load_dotenv()
+    load_dotenv(Path(__file__).resolve().parents[2] / "dota2_dbt" / ".env")
 
     pipeline_name = "dota2_match_data_pipeline"
     schema_name = os.getenv("SNOWFLAKE_SCHEMA")
