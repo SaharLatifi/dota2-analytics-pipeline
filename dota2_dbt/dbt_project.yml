@@ -10,9 +10,9 @@ clean-targets:
   - "dbt_packages"
 
 seeds:
-  # Builds seeds into '<your_schema_name>_raw'
+  # Builds seeds into 'staging_seed'
   dota2_dbt:
-    +schema: raw
+    +schema: seed
 
 models:
   dota2_dbt:
