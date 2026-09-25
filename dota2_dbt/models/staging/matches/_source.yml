@@ -1,7 +1,7 @@
 version: 2
 
 sources:
-  - name: matches
+  - name: raw_matches
     database: DOTA2_RAW
     schema: raw
     description: Match-level and player-level data for Dota 2, appended over time as new matches are ingested
@@ -20,7 +20,6 @@ sources:
             description: The unique identifier for the match
             data_tests:
               - not_null
-              - unique
           - name: start_time
             description: The Unix timestamp of when the match started
             data_tests:
@@ -29,6 +28,10 @@ sources:
             description: The duration of the match in seconds
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true
           - name: radiant_win
             description: A boolean indicating whether the Radiant team won the match (true) or not (false)
             data_tests:
@@ -37,50 +40,104 @@ sources:
             description: The status of the Radiant team's towers at the end of the match, represented as a bitmask
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    max_value: 2047 #11 towers
+                    inclusive: true
           - name: tower_status_dire
             description: The status of the Dire team's towers at the end of the match, represented as a bitmask
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    max_value: 2047 #11 towers
+                    inclusive: true
           - name: barracks_status_radiant
             description: Bitmask of the Radiant team's barracks left standing
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    max_value: 63 #6 barracks
+                    inclusive: true
           - name: barracks_status_dire
             description: Bitmask of the Dire team's barracks left standing
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    max_value: 63 #6 barracks
+                    inclusive: true
           - name: first_blood_time
             description: Seconds from match start to the first hero kill
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true
           - name: radiant_score
             description: Total hero kills by the Radiant team
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true
           - name: dire_score
             description: Total hero kills by the Dire team
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true
           - name: human_players
             description: Number of human-controlled players in the match (10 = a normal full match) — used to filter out broken/incomplete matches, not shown on the dashboard
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    max_value: 10
+                    inclusive: true
           - name: lobby_type
             description: Numeric code for how the match was organized (normal, ranked, tournament, etc.) — joins to constants_lobby_type
             data_tests:
               - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw_master_data','constants_lobby_type')
+                    field: id
           - name: game_mode
             description: Numeric code for the game/hero-selection rules used (All Pick, Turbo, etc.) — joins to constants_game_mode
             data_tests:
               - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw_master_data','constants_game_mode')
+                    field: id
           - name: region
             description: Numeric code for the server/matchmaking region — joins to constants_region
             data_tests:
-              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw_master_data','constants_region')
+                    field: id
           - name: patch
             description: Identifier for the Dota 2 patch the match was played on — used as a dashboard filter
+            data_tests:
+              - not_null
           - name: version
             description: OpenDota's parsed-data format version — not shown on the dashboard, but required by the dedup logic that picks the preferred row per match_id
+          - name: od_data__has_parsed
+            description: True once OpenDota has parsed the match replay into the detailed stats (lanes, teamfights, per-player extras). Most matches start out unparsed, so the dedup logic uses this together with version to pick the preferred row when the same match_id shows up more than once
+            data_tests:
+              - not_null
           - name: _dlt_load_id
             description: Identifies the dlt load batch that inserted this row
             data_tests:
@@ -89,6 +146,7 @@ sources:
             description: Unique technical identifier generated by dlt for this row
             data_tests:
               - not_null
+              - unique
 
       - name: matches__players
         description: One record per player per match
@@ -108,47 +166,119 @@ sources:
           - name: hero_id
             description: The hero this player used — joins to heroes.id
             data_tests:
-              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw_master_data' , 'heroes')
+                    field: id
+                  config:
+                    where: "hero_id != 0"
           - name: is_radiant
             description: True if this player was on the Radiant team, false if Dire
             data_tests:
               - not_null
-          - name: win
-            description: True if this player's team won the match
           - name: kills
             description: Enemy hero kills by this player
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true              
           - name: deaths
             description: Times this player died
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true              
           - name: assists
             description: Assisted hero kills by this player
             data_tests:
               - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true              
           - name: kda
             description: OpenDota-computed overall kill/death/assist performance score
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true                
           - name: gold_per_min
             description: Average gold earned per minute
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true              
           - name: xp_per_min
             description: Average experience earned per minute
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true              
           - name: level
             description: Hero level at the end of the match
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true              
           - name: net_worth
             description: Final total economic value (gold + item value)
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true              
           - name: last_hits
             description: Successful last hits on lane creeps
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true              
           - name: denies
             description: Denied last hits on the player's own creeps
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true              
           - name: hero_damage
             description: Total damage dealt to enemy heroes
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true              
           - name: tower_damage
             description: Total damage dealt to towers
-          - name: hero_healing
-            description: Total healing provided to allied heroes
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true              
           - name: teamfight_participation
             description: Share of teamfights this player took part in (0-1) — requires the match to be parsed by OpenDota
+            data_tests:
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true             
           - name: towers_killed
             description: Towers this player destroyed — requires the match to be parsed by OpenDota
           - name: roshans_killed
@@ -175,13 +305,25 @@ sources:
         columns:
           - name: value
             description: Radiant's gold advantage in gold at this minute (negative means Dire is ahead)
+            data_tests:
+              - not_null
           - name: _dlt_list_idx
             description: Position of this record in the original array — this is the minute mark of the match, and is what makes comeback/momentum analysis possible
+            data_tests:
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true
           - name: _dlt_parent_id
             description: Links to matches._dlt_id — identifies which match this gold advantage record belongs to
             data_tests:
               - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw_matches', 'matches')
+                    field: _dlt_id
           - name: _dlt_id
             description: Unique technical identifier generated by dlt for this row
             data_tests:
               - not_null
+              - unique
