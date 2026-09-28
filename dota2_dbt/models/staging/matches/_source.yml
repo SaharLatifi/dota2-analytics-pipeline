@@ -24,6 +24,9 @@ sources:
             description: The Unix timestamp of when the match started
             data_tests:
               - not_null
+              - dbt_utils.expression_is_true:
+                  arguments:
+                    expression: "<= date_part(epoch_second, current_timestamp())"
           - name: duration
             description: The duration of the match in seconds
             data_tests:
@@ -150,6 +153,18 @@ sources:
 
       - name: matches__players
         description: One record per player per match
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "rank_tier is null or floor(rank_tier / 10) between 1 and 8"
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "rank_tier is null or mod(rank_tier, 10) between 0 and 5"
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns:
+                  - _dlt_parent_id
+                  - player_slot
         columns:
           - name: account_id
             description: Identifies the player; missing for players with a private profile
