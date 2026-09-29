@@ -1,8 +1,9 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 import snowflake.connector
 
-load_dotenv()  # Load environment variables from .env file
+load_dotenv(Path(__file__).resolve().parents[2] / "dota2_dbt" / ".env")  # Load environment variables from .env file
 
 def read_public_matches():
 

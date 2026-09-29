@@ -50,9 +50,10 @@ def get_data(base_url, api_key, endpoint    ):
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
+    from pathlib import Path
     import os
 
-    load_dotenv()  # Load environment variables from .env file
+    load_dotenv(Path(__file__).resolve().parents[3] / "dota2_dbt" / ".env")  # Load environment variables from .env file
 
     base_url = os.getenv("OPENDOTA_BASE_URL")
     api_key = os.getenv("API_KEY")
