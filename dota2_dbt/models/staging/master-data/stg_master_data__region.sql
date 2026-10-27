@@ -1,8 +1,8 @@
-with source_region as 
+with source_region as
 (
-   select 
+   select
      {{ dbt_utils.generate_surrogate_key(['_dlt_id']) }} as staging_region_id ,
-     id              as source_region_id,
+     cast(id as number) as source_region_id,
      trim(name)      as region_name,
      _dlt_id         as dlt_row_id,
      _dlt_load_id    as dlt_load_id

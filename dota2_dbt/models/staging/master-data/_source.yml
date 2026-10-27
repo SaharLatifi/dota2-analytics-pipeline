@@ -13,6 +13,30 @@ sources:
         source_url: https://api.opendota.com/api/constants
         source_description: This data is sourced from the OpenDota API, which provides constant values for Dota 2 items.
     tables:
+      - name: _dlt_loads
+        description: >
+          dlt's own load-batch metadata table — one row per pipeline run that loaded into this
+          schema, shared across every dlt pipeline writing here (not owned by any one table above).
+          Joins back to any table's dlt_load_id to resolve it to a real timestamp.
+        columns:
+          - name: load_id
+            description: The load batch identifier — matches dlt_load_id on every other table in this source
+            data_tests:
+              - not_null
+              - unique
+          - name: schema_name
+            description: Which dlt pipeline/schema this load belongs to
+            data_tests:
+              - not_null
+          - name: status
+            description: dlt's numeric load status code
+          - name: inserted_at
+            description: The actual date-time this load batch was inserted — the real ingestion timestamp
+            data_tests:
+              - not_null
+          - name: schema_version_hash
+            description: Hash of the schema version this load was made against
+
       - name: heroes
         description: Contains information about the heroes in Dota 2, one record per hero
         columns:
