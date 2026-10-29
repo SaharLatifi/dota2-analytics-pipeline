@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 # Make the ingestion package importable regardless of how this script is invoked
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ingestion.read.read_public_matches import read_public_matches
+from read.read_public_matches import read_public_matches
 from extract.get_data_match import get_data_match
 from load.dlt_loader import load_to_snowflake
 
@@ -41,6 +41,13 @@ def _collapse_dynamic_key_fields(players):
 
 def update_match_status(table_name, dlt_id, match_id, status, last_error=None):
     # Records per-match load outcome in the control table for retries/auditing
+    # last_error is TEXT(1000) in Snowflake — dlt's failure messages (especially
+    # PipelineStepFailed) are often several times that, which fails the MERGE
+    # itself and crashes the whole run. Truncate before it ever reaches the query.
+    # Keep the END of the message, not the start — dlt puts generic traceback
+    # noise first and the actual root-cause line (e.g. the real SQL error) last.
+    if last_error and len(last_error) > 1000:
+        last_error = "[truncated] ..." + last_error[-985:]
     # Establish a connection to Snowflake   
     connection = snowflake.connector.connect(
         user=os.getenv("DESTINATION__SNOWFLAKE__CREDENTIALS__USERNAME"),
@@ -115,18 +122,19 @@ def main():
 
     for row in df_matches.itertuples(index=False):
         print(row._fields)
-        match_data = get_data_match(row.MATCH_ID)
-       # print(match_data)
-        if not match_data:
-            raise ValueError(f"No match data was returned by the API for {row.MATCH_ID}")
-
-        if isinstance(match_data.get("players"), list):
-            match_data["players"] = _collapse_dynamic_key_fields(match_data["players"])
-
         load_info = None
         try:
-            # Per-match try/except so one failure doesn't stop the rest of the loop
-             # 3. Run the pipeline
+            # Per-match try/except so one failure (API error, rate limit, no
+            # data for this match) doesn't stop the rest of the batch — the
+            # fetch has to be inside this block too, not just the save.
+            match_data = get_data_match(row.MATCH_ID)
+            if not match_data:
+                raise ValueError(f"No match data was returned by the API for {row.MATCH_ID}")
+
+            if isinstance(match_data.get("players"), list):
+                match_data["players"] = _collapse_dynamic_key_fields(match_data["players"])
+
+            # 3. Run the pipeline
             load_info = load_to_snowflake(
                 pipeline_name,
                 [match_data],  # Wrap match_data in a list to make it iterable
