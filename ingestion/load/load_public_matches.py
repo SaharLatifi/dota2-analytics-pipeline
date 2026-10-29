@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from extract.get_data_public_matches import get_data_public_matches
 from load.dlt_loader import load_to_snowflake
+from load.load_match import main as load_match_details
 
 
 def main():
@@ -39,6 +40,11 @@ def main():
     )
 
     print(f"Load info: {load_info}")
+
+    # 4. Chain into the match-details pipeline — it reads whatever's still
+    # unprocessed in public_matches (including what was just loaded above)
+    # directly from Snowflake, capped at 50 matches per run.
+    load_match_details()
 
 
 if __name__ == "__main__":
