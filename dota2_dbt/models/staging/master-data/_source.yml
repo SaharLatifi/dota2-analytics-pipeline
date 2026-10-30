@@ -11,7 +11,7 @@ sources:
         source: dota2
         source_type: api
         source_url: https://api.opendota.com/api/constants
-        source_description: This data is sourced from the OpenDota API, which provides constant values for Dota 2 items.
+        source_description: This data is sourced from the OpenDota API, which provides master data for Dota 2 heroes, items, and abilities.
     tables:
       - name: _dlt_loads
         description: >

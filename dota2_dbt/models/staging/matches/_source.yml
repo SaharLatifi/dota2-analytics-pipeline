@@ -287,25 +287,20 @@ sources:
                   arguments:
                     min_value: 0
                     inclusive: true              
-          - name: teamfight_participation
-            description: Share of teamfights this player took part in (0-1) — requires the match to be parsed by OpenDota
+          - name: towers_killed
+            description: Towers this player destroyed — requires the match to be parsed by OpenDota
             data_tests:
               - dbt_utils.accepted_range:
                   arguments:
                     min_value: 0
-                    inclusive: true             
-          - name: towers_killed
-            description: Towers this player destroyed — requires the match to be parsed by OpenDota
-          - name: roshans_killed
-            description: Roshan kills by this player — requires the match to be parsed by OpenDota
-          - name: lane
-            description: Numeric code for the lane this player played — requires the match to be parsed by OpenDota
-          - name: lane_role
-            description: Numeric code for this player's assigned lane role (e.g. safe/mid/off/jungle) — requires the match to be parsed by OpenDota
-          - name: lane_efficiency
-            description: Laning-phase efficiency score — requires the match to be parsed by OpenDota
+                    inclusive: true
           - name: actions_per_min
             description: Player activity rate (actions per minute) — requires the match to be parsed by OpenDota
+            data_tests:
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: true
           - name: _dlt_parent_id
             description: Links to matches._dlt_id — identifies which match this player record belongs to
             data_tests:
