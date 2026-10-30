@@ -15,6 +15,11 @@ sources:
     tables:
       - name: matches
         description: Contains information about individual Dota 2 matches, one record per received API response (append-only; the same match_id can appear more than once)
+        config:
+          loaded_at_field: "DATEADD(SECOND, TRY_TO_DOUBLE(_dlt_load_id), '1970-01-01'::TIMESTAMP_NTZ)"
+          freshness:
+            warn_after: {count: 1, period: day}
+            error_after: {count: 2, period: day}
         columns:
           - name: match_id
             description: The unique identifier for the match
