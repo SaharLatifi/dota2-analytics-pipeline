@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: stg_master_data__lobby_type
+    description: >
+      Cleaned, one-row-per-lobby-type reference data — renames and lightly
+      reshapes constants_lobby_type from the raw layer. SCD Type 1,
+      overwritten on every run.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "length(trim(lobby_type_name)) > 0"
+    columns:
+      - name: staging_lobby_type_id
+        description: Surrogate key for this staging row, hashed from _dlt_id. Carries through to dim_lobby_type as its key at mart.
+      - name: source_lobby_type_id
+        description: The lobby type's original numeric id, as OpenDota assigns it. Kept for lineage back to the source system.
+      - name: lobby_type_name
+        description: >
+          The lobby type's display name (e.g. Public Matchmaking, Practice,
+          Tournament), with the "lobby_type_" prefix stripped off the raw
+          name.
+        data_tests:
+          - not_null
+      - name: is_balanced
+        description: Renamed from the source's balanced field — whether this lobby type is considered balanced.
+      - name: dlt_row_id
+        description: Renamed from _dlt_id — lineage back to the raw row this came from.
+      - name: dlt_load_id
+        description: Renamed from _dlt_load_id — identifies which dlt load batch inserted the raw row.
