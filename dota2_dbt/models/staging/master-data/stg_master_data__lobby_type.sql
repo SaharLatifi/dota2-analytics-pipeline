@@ -1,7 +1,7 @@
 with source_lobby_type as
 (
     select 
-        {{ dbt_utils.generate_surrogate_key(['_dlt_id']) }} as staging_lobby_type_id ,
+        {{ dbt_utils.generate_surrogate_key(['id']) }} as staging_lobby_type_id ,
         id               as source_lobby_type_id ,
         trim(regexp_replace(name,'^lobby_type_',''))             as lobby_type_name ,
         balanced         as is_balanced,

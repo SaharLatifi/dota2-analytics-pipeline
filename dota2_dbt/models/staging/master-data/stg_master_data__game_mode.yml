@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: stg_master_data__game_mode
+    description: >
+      Cleaned, one-row-per-game-mode reference data — renames and lightly
+      reshapes constants_game_mode from the raw layer. SCD Type 1, overwritten
+      on every run.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "length(trim(game_mode_name)) > 0"
+    columns:
+      - name: staging_game_mode_id
+        description: Surrogate key for this staging row, hashed from _dlt_id. Carries through to dim_game_mode as its key at mart.
+      - name: source_game_mode_id
+        description: The game mode's original numeric id, as OpenDota assigns it. Kept for lineage back to the source system.
+      - name: game_mode_name
+        description: >
+          The game mode's display name (e.g. All Pick, Turbo, Captains Mode),
+          with the "game_mode_" prefix stripped off the raw name.
+        data_tests:
+          - not_null
+      - name: is_balanced
+        description: Renamed from the source's balanced field — whether this game mode is considered balanced.
+      - name: dlt_row_id
+        description: Renamed from _dlt_id — lineage back to the raw row this came from.
+      - name: dlt_load_id
+        description: Renamed from _dlt_load_id — identifies which dlt load batch inserted the raw row.

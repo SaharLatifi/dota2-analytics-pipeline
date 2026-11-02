@@ -1,0 +1,43 @@
+snapshots:
+  - name: scd_master_data_heroes
+    description: >
+      SCD Type 2 history of hero reference data — one row per hero per
+      version. A new version is captured when hero_name, primary_attribute,
+      attack_type, or leg_count changes. dbt_valid_to is null on the
+      currently active version of each hero.
+    relation:  ref('stg_master_data__heroes')
+    config:
+      database: dota2_staging
+      schema: snapshots
+      strategy: check
+      unique_key: source_hero_id
+      check_cols: ['hero_name', 'primary_attribute', 'attack_type', 'leg_count']
+    columns:
+      - name: source_hero_id
+        description: The hero's business key (OpenDota's own hero id) — stable across every run, used to recognize the same hero across versions.
+        data_tests:
+          - not_null
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ['source_hero_id']
+              config:
+                where: "dbt_valid_to is null"
+      - name: hero_name
+        description: The hero's display name at the time of this version.
+      - name: primary_attribute
+        description: The hero's primary attribute (str/agi/int/all) at the time of this version.
+      - name: attack_type
+        description: The hero's attack type (Melee/Ranged) at the time of this version.
+      - name: leg_count
+        description: The hero's leg count at the time of this version.
+      - name: dbt_scd_id
+        description: dbt's own generated id for this specific version row — unique per version, not per hero.
+        data_tests:
+          - not_null
+          - unique
+      - name: dbt_valid_from
+        description: When this version became active.
+        data_tests:
+          - not_null
+      - name: dbt_valid_to
+        description: When this version stopped being active. Null means this is the hero's current version.

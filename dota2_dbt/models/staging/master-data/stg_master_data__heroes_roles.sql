@@ -1,8 +1,9 @@
+{{ config(materialized = 'ephemeral') }}
+
 with source_heroes_roles as
 (
     select 
-            {{ dbt_utils.generate_surrogate_key(['_dlt_id']) }} as staging_hero_role_id,
-            value           as   role_name,
+            trim(value)     as   role_name,
             _dlt_id         as   dlt_row_id ,
             _dlt_parent_id  as   dlt_parent_id
     from {{ source('raw_master_data' , 'heroes__roles')}}
@@ -18,7 +19,7 @@ with source_heroes_roles as
 
 
 select  
-    r.staging_hero_role_id,
+    {{ dbt_utils.generate_surrogate_key(['source_hero_id', 'role_name']) }} as staging_hero_role_id,
     r.role_name,
     h.staging_hero_id,
     h.source_hero_id,

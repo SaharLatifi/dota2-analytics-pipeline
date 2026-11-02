@@ -1,0 +1,42 @@
+snapshots:
+  - name: scd_master_data_heroes__roles
+    description: >
+      SCD Type 2 history of hero role assignments — one row per (hero, role)
+      per version. A new version is captured when a hero gains a role, and
+      hard_deletes: new_record inserts an explicit "deleted" row when a hero
+      loses one, instead of the pair silently disappearing.
+    relation:  ref('stg_master_data__heroes_roles')
+    config:
+      database: dota2_staging
+      schema: snapshots
+      strategy: check
+      unique_key: staging_hero_role_id
+      check_cols: ['role_name']
+      hard_deletes: new_record
+    columns:
+      - name: staging_hero_role_id
+        description: Hashed from (source_hero_id, role_name) — the real identity of this hero-role pair, stable across every run.
+        data_tests:
+          - not_null
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ['staging_hero_role_id']
+              config:
+                where: "dbt_valid_to is null"
+      - name: source_hero_id
+        description: The hero this role belongs to, resolved via the LEFT JOIN back to stg_master_data__heroes — not_null here catches a role that couldn't find its hero.
+        data_tests:
+          - not_null
+      - name: role_name
+        description: The role classification at the time of this version (e.g. Carry, Support, Nuker).
+      - name: dbt_scd_id
+        description: dbt's own generated id for this specific version row — unique per version, not per hero-role pair.
+        data_tests:
+          - not_null
+          - unique
+      - name: dbt_valid_from
+        description: When this version became active.
+        data_tests:
+          - not_null
+      - name: dbt_valid_to
+        description: When this version stopped being active. Null means this hero-role pair is currently active.

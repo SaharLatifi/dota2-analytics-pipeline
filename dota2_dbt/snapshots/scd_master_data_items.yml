@@ -1,0 +1,41 @@
+snapshots:
+  - name: scd_master_data_items
+    description: >
+      SCD Type 2 history of item reference data — one row per item per
+      version. A new version is captured when item_name or item_cost
+      changes, and hard_deletes: new_record inserts an explicit "deleted"
+      row when an item disappears from the source, instead of it silently
+      vanishing.
+    relation:  ref('stg_master_data__items')
+    config:
+      database: dota2_staging
+      schema: snapshots
+      strategy: check
+      unique_key: source_item_id
+      check_cols: ['item_name', 'item_cost']
+      hard_deletes: new_record
+    columns:
+      - name: source_item_id
+        description: The item's business key — stable across every run, used to recognize the same item across versions.
+        data_tests:
+          - not_null
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: ['source_item_id']
+              config:
+                where: "dbt_valid_to is null"
+      - name: item_name
+        description: The item's display name at the time of this version.
+      - name: item_cost
+        description: The item's gold cost at the time of this version.
+      - name: dbt_scd_id
+        description: dbt's own generated id for this specific version row — unique per version, not per item.
+        data_tests:
+          - not_null
+          - unique
+      - name: dbt_valid_from
+        description: When this version became active.
+        data_tests:
+          - not_null
+      - name: dbt_valid_to
+        description: When this version stopped being active. Null means this is the item's current version.

@@ -1,7 +1,9 @@
+{{ config(materialized = 'ephemeral') }}
+
 with source_constants_items as
 (
     select
-        {{ dbt_utils.generate_surrogate_key(['_dlt_id']) }} as staging_item_id ,
+        {{ dbt_utils.generate_surrogate_key(['id']) }} as staging_item_id ,
         id              as      source_item_id,
         trim(dname)     as      item_name,
         cost            as      item_cost,
