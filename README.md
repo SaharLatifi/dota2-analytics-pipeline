@@ -88,16 +88,96 @@ a few business-rule checks specific to this data)._
 The dimensional model is designed to answer population-level questions about
 Dota 2 matches and heroes, rather than tracking a single player:
 
-1. Which heroes have the highest win rates overall, and does that vary by rank tier?
-2. Do certain heroes perform better in certain roles or attack types?
-3. Does the Radiant side have a structural win-rate advantage?
-4. What's the average match duration by game mode and rank tier?
-5. Is there a relationship between a hero's primary attribute (str/agi/int) or attack type and win rate?
-6. How does match outcome correlate with the average rank tier of participants?
-7. How does match volume/outcome vary by day of week or time of day?
-8. How do average KDA, GPM, and XP trend over time across all matches (e.g., by date, week, or patch)?
-9. Do average KDA, GPM, or XP differ significantly by rank tier?
-10. Is there a relationship between GPM/XP and win rate across matches?
+## Business questions
+
+### Players and engagement
+1. How many new and active players are there each week?
+2. How many players come back in the weeks after they're first seen?
+3. How are players distributed across rank brackets?
+4. How does match volume vary by day of week and hour (UTC)?
+
+### Heroes and balance
+5. Which heroes have the highest win rates, and does that vary by rank bracket?
+6. Do win rates differ by hero role, primary attribute or attack type?
+7. Does the Radiant side have a structural win-rate advantage?
+8. Does the team with the higher average rank win more often?
+9. What is the average match duration by game mode and rank bracket?
+10. How do KDA, GPM and XPM differ by rank bracket and between winners and losers?
+11. How do KDA, GPM and XPM trend by week and patch?
+12. How far do heroes level up in a match, and how does that depend on match length and winning?
+
+## Metrics
+
+| Metric | Definition | Questions |
+| --- | --- | --- |
+| New players | Known accounts whose first-seen match falls in the period (first-seen date stands in for install date) | 1 |
+| Active players | Distinct known accounts with at least one match in the week | 1 |
+| Matches per player | Matches ÷ active players | 1 |
+| Weekly cohort retention | Share of a first-seen cohort with a match N weeks later | 2 |
+| Rank distribution | Active players by rank bracket | 3 |
+| Match volume | Matches by day of week and start hour | 4 |
+| Hero win rate | Wins ÷ matches played with the hero | 5, 6 |
+| Hero pick rate | Matches with the hero ÷ total matches | 5 |
+| Radiant win rate | Radiant wins ÷ total matches | 7 |
+| Rank edge win rate | Share of matches won by the team with the higher average rank | 8 |
+| Average match duration | Mean minutes per match | 9 |
+| GPM, XPM, KDA | Averages per player; KDA = (kills + assists) ÷ max(deaths, 1), from summed values | 10, 11 |
+| Level milestone reach | Share of player-matches reaching at least level 6, 10, 15, 20 and 25, by duration bucket (under 30, 30–45, over 45 min) and win/loss | 12 |
+
+## Dashboard wireframe
+
+### Page 1 · Players: who plays, and do they come back?
+
+```text
++------------------------------------------------------------------+
+| Filters: date range | region | rank bracket                      |
++----------------+----------------+----------------+----------------+
+| Matches        | Active players | New players    | Matches per    |
+|                |                |                | player         |
++----------------+----------------+-+--------------+----------------+
+| Weekly active players             | New players by week           |
+| (line chart)                      | (bar chart)                   |
++-----------------------------------+-------------------------------+
+| Weekly cohort retention                                           |
+| (heatmap: first-seen week x weeks since first seen, % active)     |
++---------------------------------+---------------------------------+
+| Players by rank bracket         | Matches by day of week and hour |
+| (bar chart)                     | (heatmap, UTC)                  |
++---------------------------------+---------------------------------+
+```
+
+### Page 2 · Heroes and balance: what wins, and where?
+
+```text
++------------------------------------------------------------------+
+| Filters: patch | rank bracket | region | game mode                |
++----------------+----------------+----------------+----------------+
+| Matches        | Radiant win    | Avg match      | Rank edge      |
+|                | rate           | duration       | win rate       |
++----------------+----------------+-+--------------+----------------+
+| Hero win rate vs pick rate        | Top 10 heroes by win rate     |
+| (scatter, one dot per hero)       | (table, min match threshold)  |
++---------------------------------+-+-------------------------------+
+| Win rate by attribute & attack  | Win rate by hero role           |
+| (grouped bars)                  | (bar chart)                     |
++---------------------------------+---------------------------------+
+| Duration by game mode and rank  | GPM, XPM and KDA by rank        |
+| (heatmap, avg minutes)          | (grouped bars, winners/losers)  |
++---------------------------------+---------------------------------+
+| Level milestone funnel                                            |
+| (% reaching level 6, 10, 15, 20, 25; split by duration bucket    |
+|  and winners vs losers)                                           |
++------------------------------------------------------------------+
+| Patch trend                                                       |
+| (lines by week: KDA, GPM, XPM, patch dates marked)                |
++------------------------------------------------------------------+
+```
+
+## Caveats
+- Matches are a random sample of public games, so player metrics demonstrate the technique rather than true values.
+- Anonymous accounts are excluded from player counts but kept in match and hero stats.
+- Hero win rates use a minimum match count to avoid noise from rarely played heroes.
+- Level is the hero's level at the end of one match and resets every game. Lower reach at high levels mostly reflects shorter games, not players getting stuck.
 
 ## 📊 Public Dashboard
 

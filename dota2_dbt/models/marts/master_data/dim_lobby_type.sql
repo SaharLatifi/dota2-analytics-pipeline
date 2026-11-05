@@ -1,8 +1,4 @@
-{{
-    config(
-        materialized = 'table'
-    )
-}}
+{{ config(materialized = 'table') }}
 
 select
     {{ dbt_utils.generate_surrogate_key(['source_lobby_type_id']) }} as lobby_type_id,
