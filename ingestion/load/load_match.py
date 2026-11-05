@@ -36,6 +36,7 @@ MATCH_PLAYER_JSON_FIELDS = [
 # rather than keep retrying against a table that won't create.
 MATCH_PLAYER_UNUSED_LIST_FIELDS = [
     "additional_units",
+    "permanent_buffs",
 ]
 
 
