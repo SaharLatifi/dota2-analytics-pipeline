@@ -10,7 +10,10 @@ models:
       - name: staging_hero_id
         description: Surrogate key for this staging row, hashed from _dlt_id. Carries through to dim_hero as its key at mart.
       - name: source_hero_id
-        description: The hero's original numeric id, as OpenDota assigns it. Kept for lineage back to the source system.
+        description: The hero's original numeric id, as OpenDota assigns it. Kept for lineage back to the source system. This is the snapshot's unique_key, so it must be unique here — a duplicate would make the SCD2 merge match the wrong row.
+        data_tests:
+          - not_null
+          - unique
       - name: hero_name
         description: The hero's player-facing display name (e.g. Anti-Mage), trimmed of surrounding whitespace.
       - name: primary_attribute

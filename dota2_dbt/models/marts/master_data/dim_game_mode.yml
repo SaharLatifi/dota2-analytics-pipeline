@@ -1,0 +1,41 @@
+models:
+  - name: dim_game_mode
+    description: >
+      Game mode reference dimension — one row per game mode, plus a synthetic
+      'Unknown' row for any fact row whose game mode can't be resolved. SCD
+      Type 1 (overwritten in place), fully rebuilt from staging on every run.
+    columns:
+      - name: game_mode_id
+        description: Surrogate key, hashed from source_game_mode_id. The 'Unknown' row's key is hashed from a fixed literal instead, so it's stable across runs.
+        data_tests:
+          - not_null
+          - unique
+      - name: source_game_mode_id
+        description: OpenDota's own game mode id. Null only on the synthetic 'Unknown' row.
+        data_tests:
+          - not_null:
+              config:
+                where: "game_mode_name != 'Unknown'"
+          - unique:
+              config:
+                where: "game_mode_name != 'Unknown'"
+      - name: staging_game_mode_id
+        description: Carried straight through from staging for lineage. Null only on the synthetic 'Unknown' row.
+        data_tests:
+          - not_null:
+              config:
+                where: "game_mode_name != 'Unknown'"
+      - name: game_mode_name
+        description: Display name of the game mode, or 'Unknown' for the synthetic row.
+        data_tests:
+          - not_null
+      - name: is_balanced
+        description: Whether this game mode counts toward matchmaking balance. Null on the synthetic 'Unknown' row.
+      - name: created_at
+        description: When this row was last (re)built — this table is fully replaced every run, not merged, so there's no separate "first inserted" moment to track.
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Same as created_at — identical on every row since the whole table is rebuilt together.
+        data_tests:
+          - not_null

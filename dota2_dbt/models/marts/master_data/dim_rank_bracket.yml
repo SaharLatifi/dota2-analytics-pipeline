@@ -1,0 +1,40 @@
+models:
+  - name: dim_rank_bracket
+    description: >
+      Rank bracket reference dimension (Herald through Immortal) — one row
+      per bracket, plus a synthetic 'Unknown' row for unranked/unresolved
+      matches. SCD Type 1 (overwritten in place), fully rebuilt from staging
+      on every run.
+    columns:
+      - name: rank_bracket_id
+        description: Surrogate key, hashed from source_rank_bracket_id. The 'Unknown' row's key is hashed from a fixed literal instead, so it's stable across runs.
+        data_tests:
+          - not_null
+          - unique
+      - name: source_rank_bracket_id
+        description: The rank bracket's natural key (1-8, Herald through Immortal). Null only on the synthetic 'Unknown' row.
+        data_tests:
+          - not_null:
+              config:
+                where: "rank_bracket_name != 'Unknown'"
+          - unique:
+              config:
+                where: "rank_bracket_name != 'Unknown'"
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 8
+              config:
+                where: "rank_bracket_name != 'Unknown'"
+      - name: rank_bracket_name
+        description: Display name of the rank bracket, or 'Unknown' for the synthetic row.
+        data_tests:
+          - not_null
+      - name: created_at
+        description: When this row was last (re)built — this table is fully replaced every run, not merged, so there's no separate "first inserted" moment to track.
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Same as created_at — identical on every row since the whole table is rebuilt together.
+        data_tests:
+          - not_null

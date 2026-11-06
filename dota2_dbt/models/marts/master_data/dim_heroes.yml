@@ -1,0 +1,68 @@
+models:
+  - name: dim_heroes
+    description: >
+      Hero dimension — SCD Type 2, one row per hero per version, built
+      straight from the scd_master_data_heroes snapshot (which already does
+      all the change detection). Plus a synthetic 'Unknown' row for any fact
+      row whose hero can't be resolved. Fully rebuilt from the snapshot on
+      every run — no incremental/merge logic, since the snapshot has already
+      done that work.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ['source_hero_id']
+          config:
+            where: "dbt_valid_to is null and hero_name != 'Unknown'"
+    columns:
+      - name: hero_id
+        description: Surrogate key, hashed from dbt_scd_id — unique per version, not per hero, which is what makes SCD Type 2 work here. The 'Unknown' row's key is hashed from a fixed literal instead.
+        data_tests:
+          - not_null
+          - unique
+      - name: source_hero_id
+        description: OpenDota's own hero id — the same across every version of a given hero. Null only on the synthetic 'Unknown' row.
+        data_tests:
+          - not_null:
+              config:
+                where: "hero_name != 'Unknown'"
+      - name: staging_hero_id
+        description: Hashed from source_hero_id in staging — stable across runs, used as the snapshot's unique_key. Null only on the synthetic 'Unknown' row.
+        data_tests:
+          - not_null:
+              config:
+                where: "hero_name != 'Unknown'"
+      - name: hero_name
+        description: The hero's display name at the time of this version, or 'Unknown' for the synthetic row.
+        data_tests:
+          - not_null
+      - name: primary_attribute
+        description: The hero's primary attribute (str/agi/int/all) at the time of this version. Null on the synthetic 'Unknown' row.
+      - name: attack_type
+        description: The hero's attack type (Melee/Ranged) at the time of this version. Null on the synthetic 'Unknown' row.
+      - name: leg_count
+        description: The hero's leg count at the time of this version. Null on the synthetic 'Unknown' row.
+      - name: dbt_scd_id
+        description: Carried through from the snapshot — dbt's own id for this specific version row, unique per version. Null only on the synthetic 'Unknown' row.
+        data_tests:
+          - not_null:
+              config:
+                where: "hero_name != 'Unknown'"
+          - unique:
+              config:
+                where: "hero_name != 'Unknown'"
+      - name: dbt_valid_from
+        description: When this version became active. Null only on the synthetic 'Unknown' row.
+        data_tests:
+          - not_null:
+              config:
+                where: "hero_name != 'Unknown'"
+      - name: dbt_valid_to
+        description: When this version stopped being active. Null means this is the hero's current version — also null (by construction, not by meaning) on the synthetic 'Unknown' row.
+      - name: created_at
+        description: When this row was last (re)built — this table is fully replaced every run, not merged, so there's no separate "first inserted" moment to track.
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Same as created_at — identical on every row since the whole table is rebuilt together.
+        data_tests:
+          - not_null

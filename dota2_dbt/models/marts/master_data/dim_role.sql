@@ -6,9 +6,22 @@ with distinct_roles as
     from {{ ref('scd_master_data_heroes__roles') }}
 )
 
+, roles as
+(
+    select
+        {{ dbt_utils.generate_surrogate_key(['role_name']) }} as role_id,
+        role_name,
+        current_timestamp() as created_at,
+        current_timestamp() as updated_at
+    from distinct_roles
+)
+
+select * from roles
+
+union all
+
 select
-    {{ dbt_utils.generate_surrogate_key(['role_name']) }} as role_id,
-    role_name,
+    {{ dbt_utils.generate_surrogate_key(["'unknown_role'"]) }} as role_id,
+    'Unknown' as role_name,
     current_timestamp() as created_at,
     current_timestamp() as updated_at
-from distinct_roles
