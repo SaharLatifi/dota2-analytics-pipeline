@@ -1,0 +1,65 @@
+models:
+  - name: bridge_hero_role
+    description: >
+      Many-to-many bridge between dim_heroes and dim_role — SCD Type 2,
+      one row per hero-role pair per version, built straight from the
+      scd_master_data_heroes__roles snapshot. hero_id resolves to the hero's
+      current version in dim_heroes (not a time-aligned version), so a role
+      is always attached to whatever the hero currently is.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ['source_hero_id', 'role_name']
+          config:
+            where: "dbt_valid_to is null"
+    columns:
+      - name: hero_role_id
+        description: Surrogate key, hashed from dbt_scd_id — unique per version, not per hero-role pair.
+        data_tests:
+          - not_null
+          - unique
+      - name: hero_id
+        description: FK to dim_heroes — resolved to the hero's current (dbt_valid_to is null) version.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_heroes')
+                field: hero_id
+      - name: role_id
+        description: FK to dim_role.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_role')
+                field: role_id
+      - name: source_hero_id
+        description: The hero this role belongs to, carried through from the snapshot.
+        data_tests:
+          - not_null
+      - name: role_name
+        description: The role classification at the time of this version (e.g. Carry, Support, Nuker).
+      - name: is_deleted
+        description: True for a tombstone row recording that this hero-role pair was removed from the source, instead of it silently disappearing.
+        data_tests:
+          - not_null
+      - name: dbt_scd_id
+        description: Carried through from the snapshot — dbt's own id for this specific version row, unique per version.
+        data_tests:
+          - not_null
+          - unique
+      - name: dbt_valid_from
+        description: When this version became active.
+        data_tests:
+          - not_null
+      - name: dbt_valid_to
+        description: When this version stopped being active. Null means this hero-role pair is currently active (or currently deleted, if is_deleted is true).
+      - name: created_at
+        description: When this row was last (re)built — this table is fully replaced every run, not merged, so there's no separate "first inserted" moment to track.
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Same as created_at — identical on every row since the whole table is rebuilt together.
+        data_tests:
+          - not_null

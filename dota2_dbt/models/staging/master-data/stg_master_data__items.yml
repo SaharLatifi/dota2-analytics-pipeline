@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: stg_master_data__items
+    description: >
+      Cleaned, one-row-per-item reference data — renames and lightly reshapes
+      items from the raw layer. Feeds scd_master_data_items, which tracks
+      changes to an item's name/cost across patches instead of overwriting.
+    columns:
+      - name: staging_item_id
+        description: Surrogate key for this staging row, hashed from id.
+      - name: source_item_id
+        description: >
+          The item's original numeric id, as OpenDota assigns it. This is
+          the snapshot's unique_key, so it must be unique here — a
+          duplicate would make the SCD2 merge match the wrong row.
+        data_tests:
+          - not_null
+          - unique
+      - name: item_name
+        description: The item's display name.
+      - name: item_cost
+        description: The item's gold cost.
+      - name: dtl_row_id
+        description: Renamed from _dlt_id — lineage back to the raw row this came from.
+      - name: dtl_load_id
+        description: Renamed from _dlt_load_id — identifies which dlt load batch inserted the raw row.

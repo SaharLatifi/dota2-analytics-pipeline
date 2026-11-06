@@ -1,0 +1,50 @@
+models:
+  - name: dim_dates
+    description: >
+      Date dimension — one row per calendar day from 2010-01-01 through
+      2027-12-31 (a fixed spine, not derived from match data), plus a
+      synthetic 'Unknown' row for any fact row whose date can't be resolved.
+    columns:
+      - name: date_id
+        description: Surrogate key, hashed from date_day. The 'Unknown' row's key is hashed from a fixed literal instead.
+        data_tests:
+          - not_null
+          - unique
+      - name: date_day
+        description: The calendar date itself. Null only on the synthetic 'Unknown' row.
+        data_tests:
+          - not_null:
+              config:
+                where: "business_season != 'Unknown'"
+          - unique:
+              config:
+                where: "business_season != 'Unknown'"
+      - name: year_number
+        description: Calendar year of date_day. Null on the synthetic 'Unknown' row.
+      - name: month_number
+        description: Calendar month (1-12) of date_day. Null on the synthetic 'Unknown' row.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 12
+              config:
+                where: "business_season != 'Unknown'"
+      - name: day_number
+        description: Day of month (1-31) of date_day. Null on the synthetic 'Unknown' row.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 31
+              config:
+                where: "business_season != 'Unknown'"
+      - name: is_weekend
+        description: Whether date_day falls on a Saturday or Sunday. Null on the synthetic 'Unknown' row.
+      - name: business_season
+        description: Rough seasonal bucket (Holiday/Summer/Spring/Off Season) used for reporting, or 'Unknown' for the synthetic row.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Holiday Season', 'Summer Season', 'Spring Season', 'Off Season', 'Unknown']

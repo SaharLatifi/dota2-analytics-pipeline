@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: stg_master_data__heroes_roles
+    description: >
+      One row per (hero, role) pair — reshaped from heroes' nested roles
+      list, joined back to stg_master_data__heroes to resolve staging_hero_id.
+      Feeds scd_master_data_heroes__roles, which tracks a hero gaining or
+      losing a role across patches instead of overwriting.
+    columns:
+      - name: staging_hero_role_id
+        description: >
+          Hashed from (source_hero_id, role_name) — this is the snapshot's
+          unique_key, so it must be unique here — a duplicate would make
+          the SCD2 merge match the wrong row.
+        data_tests:
+          - not_null
+          - unique
+      - name: role_name
+        description: The role classification (e.g. Carry, Support, Nuker).
+      - name: staging_hero_id
+        description: The hero this role belongs to, resolved via the join back to stg_master_data__heroes.
+      - name: source_hero_id
+        description: The hero's original numeric id, carried through from stg_master_data__heroes.
+        data_tests:
+          - not_null
+      - name: dlt_row_id
+        description: Renamed from _dlt_id — lineage back to the raw role row this came from.
+      - name: dlt_load_id
+        description: Carried through from stg_master_data__heroes — identifies which dlt load batch inserted the raw row.
