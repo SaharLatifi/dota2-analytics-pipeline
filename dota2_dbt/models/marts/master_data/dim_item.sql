@@ -22,7 +22,7 @@ select * from items
 union all
 
 select
-    {{ dbt_utils.generate_surrogate_key(["'unknown_item'"]) }} as item_id,
+    '-1' as item_id,
     cast(null as number) as source_item_id,
     cast(null as text) as staging_item_id,
     'Unknown' as item_name,

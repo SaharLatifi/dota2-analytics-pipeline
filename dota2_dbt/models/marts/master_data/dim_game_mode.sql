@@ -18,7 +18,7 @@ select * from game_modes
 union all
 
 select
-    {{ dbt_utils.generate_surrogate_key(["'unknown_game_mode'"]) }} as game_mode_id,
+    '-1' as game_mode_id,
     cast(null as number) as source_game_mode_id,
     cast(null as text) as staging_game_mode_id,
     'Unknown' as game_mode_name,

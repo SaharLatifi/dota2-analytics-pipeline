@@ -7,7 +7,7 @@ models:
       on every run.
     columns:
       - name: rank_bracket_id
-        description: Surrogate key, hashed from source_rank_bracket_id. The 'Unknown' row's key is hashed from a fixed literal instead, so it's stable across runs.
+        description: Surrogate key, hashed from source_rank_bracket_id. The 'Unknown' row's key is the literal '-1', not a hash, so it's a stable, obviously-synthetic value.
         data_tests:
           - not_null
           - unique

@@ -1,5 +1,5 @@
 models:
-  - name: dim_heroes
+  - name: dim_hero
     description: >
       Hero dimension — SCD Type 2, one row per hero per version, built
       straight from the scd_master_data_heroes snapshot (which already does
@@ -15,7 +15,7 @@ models:
             where: "dbt_valid_to is null and hero_name != 'Unknown'"
     columns:
       - name: hero_id
-        description: Surrogate key, hashed from dbt_scd_id — unique per version, not per hero, which is what makes SCD Type 2 work here. The 'Unknown' row's key is hashed from a fixed literal instead.
+        description: Surrogate key, hashed from dbt_scd_id — unique per version, not per hero, which is what makes SCD Type 2 work here. The 'Unknown' row's key is the literal '-1', not a hash, so it's an obviously-synthetic value.
         data_tests:
           - not_null
           - unique

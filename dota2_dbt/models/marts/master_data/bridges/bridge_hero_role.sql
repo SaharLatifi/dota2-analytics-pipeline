@@ -25,7 +25,7 @@ select
     current_timestamp() as created_at,
     current_timestamp() as updated_at
 from hero_roles
-left join {{ ref('dim_heroes') }} h
+left join {{ ref('dim_hero') }} h
     on hero_roles.source_hero_id = h.source_hero_id
     and h.dbt_valid_to is null
 left join {{ ref('dim_role') }} r

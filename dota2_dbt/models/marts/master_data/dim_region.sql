@@ -17,7 +17,7 @@ select * from regions
 union all
 
 select
-    {{ dbt_utils.generate_surrogate_key(["'unknown_region'"]) }} as region_id,
+    '-1' as region_id,
     cast(null as number) as source_region_id,
     cast(null as text) as staging_region_id,
     'Unknown' as region_name,

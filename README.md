@@ -19,7 +19,7 @@ for basic use.
 Key endpoints used:
 | Endpoint | Purpose |
 |---|---|
-| `/heroes` | Hero reference data → `dim_hero` |
+| `/heroes` | Hero reference data → `dim_heroes` |
 | `/players/{account_id}` | Player profile → `dim_player` |
 | `/players/{account_id}/matches` | Player match history → `fact_player_performance` |
 | `/publicMatches` | Match summaries → `fact_match` |
@@ -40,17 +40,18 @@ _Diagram coming soon._
 ## 🗂️ Data Model
 
 **Dimensions**
-- `dim_hero` — from `/heroes` (SCD Type 2 — keeps history of role/attribute changes across patches)
+- `dim_heroes` — from `/heroes` (SCD Type 2 — keeps history of role/attribute changes across patches)
 - `dim_item` — from `constants_items` (SCD Type 2 — keeps history of cost/stat changes across patches; not yet wired to a fact table)
 - `dim_role` — hero role classifications (Carry, Support, Nuker, etc.)
 - `dim_game_mode` — from `constants_game_mode`
 - `dim_lobby_type` — from `constants_lobby_type`
 - `dim_region` — from `constants_region`
 - `dim_team` — Radiant / Dire, a small seeded dimension
-- `dim_rank_tier` — Herald through Immortal, a small seeded dimension
-- `dim_date` — generated date spine
+- `dim_rank_bracket` — Herald through Immortal, a small seeded dimension
+- `dim_dates` — generated date spine
+- `dim_player` — one row per known account_id, built from match history (first/last seen, most-played hero); rank is intentionally left out here — use `fact_match_players` for rank at the time of a match
 
-All dimensions are SCD Type 1 except `dim_hero` and `dim_item`, which are
+All dimensions are SCD Type 1 except `dim_heroes` and `dim_item`, which are
 SCD Type 2 (see Design Decisions below for why).
 
 **Bridge**
@@ -196,10 +197,10 @@ with the reasoning behind them.
 
 | # | Decision | Rationale |
 |---|---|---|
-| 1 | `dim_player` includes a placeholder "unknown member" row (`account_id = -1`, name = "Unknown/Private") for players with private profiles. Applied in the dbt staging layer via `coalesce(account_id, -1)`, not in Python ingestion — the bronze layer stays raw. The `-1` row is seeded via a dbt seed file. | OpenDota omits `account_id` for players with private profiles. Using a default/unknown dimension member (a standard Kimball pattern) keeps every fact row joinable without dropping data or leaving null foreign keys. |
+| 1 | `dim_player` includes a placeholder "unknown member" row for players with private/missing profiles — `player_key = '-1'`, `account_id` null, `is_anonymous = true`. Added via `UNION ALL` directly in `dim_player.sql`, the same pattern used for the 'Unknown' row on every other dimension in this project (not a seed file, and not resolved in staging — the bronze layer stays raw). | OpenDota omits `account_id` for players with private profiles. Using a default/unknown dimension member (a standard Kimball pattern) keeps every fact row joinable without dropping data or leaving null foreign keys. Matching the `UNION ALL` pattern used everywhere else keeps the project's dimensions consistent with each other. |
 | 2 | Heroes can have more than one role (e.g. Anti-Mage is Carry, Escape, and Nuker at once), which doesn't fit in a single flat dimension row. Resolved with a `dim_role` dimension plus a `bridge_hero_role` bridge table — one row per hero/role pair. | This is the standard Kimball pattern for a many-to-many relationship between a fact and a dimension, and avoids forcing a hero into just one role. |
-| 3 | `dim_hero` and `dim_item` keep a history of changes (SCD Type 2) instead of overwriting old values the way every other dimension here does. | Heroes get reworked and items get rebalanced almost every Dota 2 patch — a hero's role or an item's cost today isn't necessarily what it was when an older match was played. Keeping history means a match's stats always reflect the hero or item as it actually was back then, not as it is now. |
-| 4 | `dim_hero`'s history is built with a dbt snapshot sitting on top of a staging model materialized as `ephemeral`, using the snapshot's `check` strategy rather than `timestamp`. (`dim_item` will follow the same pattern once it's built.) | Ephemeral means the staging step never needs its own table in Snowflake — its only job is feeding the snapshot. `check` was the right call because reference data here gets reloaded by replacing it wholesale each run, which stamps every row with a new load timestamp whether or not anything actually changed — a `timestamp` strategy would have recorded a "change" on every single run, for every hero. `check` instead compares the real tracked columns and only records a new version when something genuinely did. |
+| 3 | `dim_heroes` and `dim_item` keep a history of changes (SCD Type 2) instead of overwriting old values the way every other dimension here does. | Heroes get reworked and items get rebalanced almost every Dota 2 patch — a hero's role or an item's cost today isn't necessarily what it was when an older match was played. Keeping history means a match's stats always reflect the hero or item as it actually was back then, not as it is now. |
+| 4 | `dim_heroes`'s history is built with a dbt snapshot sitting on top of a staging model materialized as `ephemeral`, using the snapshot's `check` strategy rather than `timestamp`. (`dim_item` follows the same pattern.) | Ephemeral means the staging step never needs its own table in Snowflake — its only job is feeding the snapshot. `check` was the right call because reference data here gets reloaded by replacing it wholesale each run, which stamps every row with a new load timestamp whether or not anything actually changed — a `timestamp` strategy would have recorded a "change" on every single run, for every hero. `check` instead compares the real tracked columns and only records a new version when something genuinely did. |
 | 5 | Tests deliberately overlap across layers — e.g. `source_hero_id` is checked for uniqueness in staging, again in the snapshot (scoped to the currently active version), and again in `dim_heroes`. In a production setting this redundancy has a real warehouse-compute cost, and the usual trade-off is to test a given invariant once, at the layer closest to where it could first break, rather than re-paying for it downstream. | This is a learning project, so the layered tests are left in on purpose — the point is to see directly how a dbt snapshot's SCD Type 2 merge can silently break (duplicate business key, missing `dbt_valid_to` close) and to catch it at every layer while learning, not to run the leanest possible test suite. |
 
 ## 🚧 Status

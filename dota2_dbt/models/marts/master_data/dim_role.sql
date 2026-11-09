@@ -21,7 +21,7 @@ select * from roles
 union all
 
 select
-    {{ dbt_utils.generate_surrogate_key(["'unknown_role'"]) }} as role_id,
+    '-1' as role_id,
     'Unknown' as role_name,
     current_timestamp() as created_at,
     current_timestamp() as updated_at
