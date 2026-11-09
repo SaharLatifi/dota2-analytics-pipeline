@@ -35,7 +35,7 @@ from enriched_date_spine
 union all
 
 select
-    {{ dbt_utils.generate_surrogate_key(["'unknown_date'"]) }} as date_id,
+    '-1' as date_id,
     cast(null as date) as date_day,
     cast(null as number) as year_number,
     cast(null as number) as month_number,

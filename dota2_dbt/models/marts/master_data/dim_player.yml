@@ -1,0 +1,66 @@
+models:
+  - name: dim_player
+    description: >
+      Player dimension — one row per known account_id, plus a single
+      synthetic 'Unknown' row bucketing every player-match with a private
+      or missing account_id. SCD Type 1, fully rebuilt from match history
+      every run (safe to full-rebuild rather than incremental, since the
+      raw/staging layer never drops old matches — first_seen_date can't
+      drift). Rank bracket is intentionally left out — use
+      fact_match_players for rank at the time of a match, not a "current
+      rank" here.
+    columns:
+      - name: player_key
+        description: Surrogate key, hashed from account_id. The 'Unknown' row's key is the literal '-1', not a hash.
+        data_tests:
+          - not_null
+          - unique
+      - name: account_id
+        description: OpenDota's account id — the player's business key. Null only on the synthetic 'Unknown' row (which stands in for every private/missing account_id across all matches, not one specific player).
+        data_tests:
+          - not_null:
+              config:
+                where: "is_anonymous = false"
+          - unique:
+              config:
+                where: "is_anonymous = false"
+      - name: is_anonymous
+        description: True only for the synthetic 'Unknown' row. False for every real, known account_id.
+        data_tests:
+          - not_null
+      - name: first_seen_date
+        description: The earliest match date seen for this account — stands in for an install date. Null on the synthetic 'Unknown' row.
+        data_tests:
+          - not_null:
+              config:
+                where: "is_anonymous = false"
+      - name: first_seen_week
+        description: first_seen_date truncated to the week — the cohort week used for retention analysis. Null on the synthetic 'Unknown' row.
+        data_tests:
+          - not_null:
+              config:
+                where: "is_anonymous = false"
+      - name: last_seen_date
+        description: The latest match date seen for this account. Null on the synthetic 'Unknown' row.
+        data_tests:
+          - not_null:
+              config:
+                where: "is_anonymous = false"
+      - name: most_played_hero
+        description: >
+          The hero this account has picked most often across all matches
+          (ties broken by lowest hero id). A descriptive attribute, not a
+          dimensional FK — stored as the hero's name directly rather than
+          hero_id, since it's "nice to have" context, not something meant
+          to be sliced on. 'Unknown' both on the synthetic row and for a
+          real account whose picked hero couldn't be resolved.
+        data_tests:
+          - not_null
+      - name: created_at
+        description: When this row was last (re)built — this table is fully replaced every run, not merged, so there's no separate "first inserted" moment to track.
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Same as created_at — identical on every row since the whole table is rebuilt together.
+        data_tests:
+          - not_null

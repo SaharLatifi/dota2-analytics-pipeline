@@ -35,6 +35,7 @@ with source_match_players as
     select 
         source_match_id,
         staging_match_id,
+        dlt_load_id,
         dlt_row_id
     from {{ ref('stg_matches__matches') }}
 )
@@ -68,6 +69,7 @@ select
         p.lane_role,
         p.lane_efficiency,
         p.actions_per_min,
-        p.dlt_row_id
+        p.dlt_row_id,
+        m.dlt_load_id
 from source_match_players p
     inner join matches m on p.dlt_parent_id = m.dlt_row_id 

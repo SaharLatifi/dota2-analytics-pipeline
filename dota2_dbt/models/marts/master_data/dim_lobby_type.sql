@@ -18,7 +18,7 @@ select * from lobby_types
 union all
 
 select
-    {{ dbt_utils.generate_surrogate_key(["'unknown_lobby_type'"]) }} as lobby_type_id,
+    '-1' as lobby_type_id,
     cast(null as number) as source_lobby_type_id,
     cast(null as text) as staging_lobby_type_id,
     'Unknown' as lobby_type_name,

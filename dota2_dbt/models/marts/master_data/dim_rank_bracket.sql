@@ -20,7 +20,7 @@ select * from rank_brackets
 union all
 
 select
-    {{ dbt_utils.generate_surrogate_key(["'unknown_rank_bracket'"]) }} as rank_bracket_id,
+    '-1' as rank_bracket_id,
     cast(null as number) as source_rank_bracket_id,
     'Unknown' as rank_bracket_name,
     current_timestamp() as created_at,

@@ -23,7 +23,7 @@ select * from heroes
 union all
 
 select
-    {{ dbt_utils.generate_surrogate_key(["'unknown_hero'"]) }} as hero_id,
+    '-1' as hero_id,
     cast(null as number) as source_hero_id,
     cast(null as text) as staging_hero_id,
     'Unknown' as hero_name,
