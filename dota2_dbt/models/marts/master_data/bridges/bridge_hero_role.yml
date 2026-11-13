@@ -1,10 +1,10 @@
 models:
   - name: bridge_hero_role
     description: >
-      Many-to-many bridge between dim_heroes and dim_role — SCD Type 2,
+      Many-to-many bridge between dim_hero and dim_role — SCD Type 2,
       one row per hero-role pair per version, built straight from the
       scd_master_data_heroes__roles snapshot. hero_id resolves to the hero's
-      current version in dim_heroes (not a time-aligned version), so a role
+      current version in dim_hero (not a time-aligned version), so a role
       is always attached to whatever the hero currently is.
     data_tests:
       - dbt_utils.unique_combination_of_columns:
@@ -19,12 +19,12 @@ models:
           - not_null
           - unique
       - name: hero_id
-        description: FK to dim_heroes — resolved to the hero's current (dbt_valid_to is null) version.
+        description: FK to dim_hero -resolved to the hero's current (dbt_valid_to is null) version.
         data_tests:
           - not_null
           - relationships:
               arguments:
-                to: ref('dim_heroes')
+                to: ref('dim_hero')
                 field: hero_id
       - name: role_id
         description: FK to dim_role.

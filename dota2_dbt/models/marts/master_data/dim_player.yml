@@ -10,7 +10,7 @@ models:
       fact_match_players for rank at the time of a match, not a "current
       rank" here.
     columns:
-      - name: player_key
+      - name: player_id
         description: Surrogate key, hashed from account_id. The 'Unknown' row's key is the literal '-1', not a hash.
         data_tests:
           - not_null

@@ -31,7 +31,7 @@ with source_matches as
 
 ) , match_team_performance_radiant as (
     select 
-        {{ dbt_utils.generate_surrogate_key(['match_id',"'1'"]) }} as match_performance_teamid,
+        {{ dbt_utils.generate_surrogate_key(['match_id',"'1'"]) }} as match_performance_team_id,
         match_id,
         1 as team_id,
         radiant_win  as is_winner, 
@@ -109,7 +109,7 @@ with source_matches as
 
 )
 select    
-        match_performance_teamid,
+        match_performance_team_id,
         match_id,
         team_id,
         is_winner, 

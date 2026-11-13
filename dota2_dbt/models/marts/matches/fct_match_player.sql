@@ -14,7 +14,7 @@ with match_player as
         mp.source_match_id,
         mp.staging_match_id,      
         mp.staging_match_player_id  ,
-        coalesce(mp.account_id, -1) as account_id,
+        mp.account_id,
         rank_bracket_id ,
         rank_star ,
         player_slot,
@@ -46,7 +46,7 @@ with match_player as
         inner join {{ ref('dim_hero') }} h on h.source_hero_id = mp.source_hero_id and h.dbt_valid_to is null
         
     {% if is_incremental() %}
-        where dlt_load_id > (select coalesce(max(dlt_load_id),0) from {{ this }})
+        where mp.dlt_load_id > (select coalesce(max(dlt_load_id),0) from {{ this }})
     {% endif %}
         
 ) , match_player_with_surrogate_key as (
@@ -54,7 +54,7 @@ with match_player as
         {{ dbt_utils.generate_surrogate_key(['match_id', 'mp.account_id']) }} as match_player_id,
         match_id,
         staging_match_player_id ,
-        p.player_id,
+        coalesce(p.player_id, '-1') as player_id,
         rank_bracket_id ,
         rank_star ,
         player_slot,
@@ -84,11 +84,11 @@ with match_player as
         lane_efficiency,
         actions_per_min,
         mp.dlt_load_id,
-        dlt_row_id    ,
+        mp.dlt_row_id    ,
         current_timestamp() as created_at,
         current_timestamp() as updated_at    
     from match_player mp
-        inner join {{ ref('dim_player') }} p on mp.account_id = p.account_id 
+        left join {{ ref('dim_player') }} p on mp.account_id = p.account_id
 )
 
 select *

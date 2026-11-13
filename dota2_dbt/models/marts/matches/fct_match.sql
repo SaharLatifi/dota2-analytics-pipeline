@@ -27,9 +27,9 @@ with source_matches as
         dire_kill_count,
         first_blood_time_sec,
         human_players , 
-        coalesce(source_lobby_type_id,-1) as source_lobby_type_id,
-        coalesce(source_game_mode_id,-1) as source_game_mode_id,
-        coalesce(source_region_id,-1) as source_region_id,
+        source_lobby_type_id,
+        source_game_mode_id,
+        source_region_id,
         patch, 
         parse_version,
         is_parsed,
@@ -68,9 +68,10 @@ with source_matches as
         dire_kill_count,
         first_blood_time_sec,
         human_players ,
-        lt.lobby_type_id,
-        gm.game_mode_id,
-        r.region_id,m.source_region_id,
+        -- null or unmapped source ids fall back to the 'Unknown' member (-1) of each dimension
+        coalesce(lt.lobby_type_id, '-1') as lobby_type_id,
+        coalesce(gm.game_mode_id, '-1') as game_mode_id,
+        coalesce(r.region_id, '-1') as region_id,
         patch,
         parse_version,
         is_parsed,
@@ -79,9 +80,9 @@ with source_matches as
         current_timestamp() as created_at,
         current_timestamp() as updated_at
     from source_matches_dedup   m
-        inner join {{ ref('dim_lobby_type') }} lt on m.source_lobby_type_id = lt.source_lobby_type_id
-        inner join {{ ref('dim_game_mode') }} gm on m.source_game_mode_id = gm.source_game_mode_id
-        inner join {{ ref('dim_region') }} r on m.source_region_id = r.source_region_id
+        left join {{ ref('dim_lobby_type') }} lt on m.source_lobby_type_id = lt.source_lobby_type_id
+        left join {{ ref('dim_game_mode') }} gm on m.source_game_mode_id = gm.source_game_mode_id
+        left join {{ ref('dim_region') }} r on m.source_region_id = r.source_region_id
 )
 
 select    *
