@@ -46,7 +46,7 @@ _Diagram coming soon._
 - `dim_game_mode` — from `constants_game_mode`
 - `dim_lobby_type` — from `constants_lobby_type`
 - `dim_region` — from `constants_region`
-- `dim_team` — Radiant / Dire, a small seeded dimension
+- `dim_side` — Radiant / Dire, a small seeded dimension
 - `dim_rank_bracket` — Herald through Immortal, a small seeded dimension
 - `dim_dates` — generated date spine (not yet joined from any fact — see Known Issues)
 - `dim_player` — one row per known account_id, built from match history (first/last seen, most-played hero); rank is intentionally left out here — use `fct_match_player` for rank at the time of a match
@@ -59,9 +59,29 @@ SCD Type 2 (see Design Decisions below for why).
 
 **Facts**
 - `fct_match` — one row per match
-- `fct_match_player` — one row per player per match
-- `fct_match_team_performance` — one row per team per match (tower/barracks status decoded from the raw bitmasks, kill count)
+- `fct_match_player` — one row per player per match; also carries its own copies of `region_id`, `lobby_type_id`, `game_mode_id`, `match_date`, `patch`, and `side_id`/`is_winner` so it can relate to those conformed dimensions directly (see Design Decision #6)
+- `fct_match_side_performance` — one row per side per match (tower/barracks status decoded from the raw bitmasks, kill count); same denormalized dimension keys as `fct_match_player`
 - `fct_match_gold_advantage` — planned, not yet built; `stg_matches__match_gold_advantage` exists in staging (Radiant's gold lead by minute, per match) but no mart fact consumes it yet
+
+### Fact Table Grains
+
+The **grain** of a fact table is what exactly one row represents — getting
+this wrong (or mixing grains in one table) is the single most common cause
+of accidental double-counting in a star schema, since summing a measure
+that's actually scoped to a smaller grain inflates it by however many rows
+share that value.
+
+| Fact Table | Grain (1 row per...) | Surrogate Key (hashed from) | Core Analytical Purpose |
+|---|---|---|---|
+| `fct_match` | 1 match | `match_id` ← `source_match_id` (post-dedup) | Match-level outcome and timing: duration, start time, first blood, `radiant_win`/`winner_side_id` |
+| `fct_match_side_performance` | 1 side per match (2 rows/match) | `match_performance_team_id` ← `match_id` + `'1'`/`'2'` | Side-level objectives: decoded tower/barracks status, kill count, win/loss |
+| `fct_match_player` | 1 player per match (10 rows/match) | `match_player_id` ← `match_id` + `player_slot` | Individual performance: kills, deaths, assists, GPM, XPM, damage, net worth |
+
+`match_player_id` is hashed from `player_slot`, not `account_id` —
+`account_id` is null for every private-profile player, so a match with
+multiple private-profile players would otherwise collapse their rows onto
+the same key. `player_slot` is always unique per match regardless of
+profile privacy, so it doesn't have that problem.
 
 ERD reference (will be replaced with an embedded diagram image):
 [Dota 2 Star Schema](https://claude.ai/artifact/1owK8c2Mn2QB9QvjxR3B2A)
@@ -85,42 +105,47 @@ Checks run at the source, staging, snapshot, and mart layers: not-null,
 uniqueness, `accepted_range`/`accepted_values`, `relationships`, and a few
 business-rule checks specific to this data (see Design Decision #5 on why
 some of these deliberately overlap across layers). `fct_match.sql`,
-`fct_match_player.sql`, and `fct_match_team_performance.sql` don't have
-their own schema `.yml` files with tests yet — that's the next doc/test gap
-to close.
+`fct_match_player.sql`, and `fct_match_side_performance.sql` now each have
+their own schema `.yml` with a full set of tests — all currently passing.
 
 ### ⚠️ Known issues (found while syncing docs to the built models)
 
-- **`fct_match_player` silently drops private-profile players.** The model
-  coalesces a missing `account_id` to `-1` before joining to `dim_player`,
-  but `dim_player`'s synthetic "Unknown" row stores `account_id` as `NULL`,
-  not `-1`. Since `-1 = NULL` is never true, the `inner join` finds no match
-  and the row is dropped entirely — a real, currently-happening loss of
-  player-match rows, not just a stale doc. Fix: don't coalesce before the
-  join; `left join dim_player` on the raw (possibly null) `account_id`, then
-  `coalesce(player_id, '-1')` afterward, the same pattern already used for
-  `hero_id` via `dim_hero`.
-- **Team and rank-bracket FKs don't actually match their dimensions' key
-  type.** `dim_team.team_id` and `dim_rank_bracket.rank_bracket_id` are
-  hashed `TEXT` surrogate keys, but `fct_match.winner_team_id`,
-  `fct_match_player.team_id`, `fct_match_team_performance.team_id`, and
-  `fct_match_player.rank_bracket_id` are all still plain `1`/`2` or `1`-`8`
-  numbers carried straight through from staging. A `relationships` test
-  from any of these to their dimension can't pass as currently built.
-  Needs a decision: hash the fact-side columns to match, or stop hashing
-  `dim_team`/`dim_rank_bracket`'s small, fixed key sets in the first place.
+- **`fct_match_player.rank_bracket_id` doesn't actually match
+  `dim_rank_bracket`'s key type.** `dim_rank_bracket.rank_bracket_id` is a
+  hashed `TEXT` surrogate key, but `rank_bracket_id` on the fact is still a
+  plain `1`-`8` number carried straight through from staging. A
+  `relationships` test from the fact to the dimension can't pass as
+  currently built. Needs a decision: hash `rank_bracket_id` to match, or
+  stop hashing `dim_rank_bracket`'s small, fixed key set in the first
+  place — same fix already applied to `dim_side`/`side_id` (see Design
+  Decision table), just not yet applied here.
 - **`fct_match.match_date` isn't joined to `dim_dates`.** `dim_dates` exists
   as a generated spine but nothing references it yet, so date-dimension
   attributes (`business_season`, `is_weekend`, etc.) aren't usable from any
-  fact today.
-- **`fct_match_team_performance.radiant_tower_status_bitmask` /
-  `radiant_barracks_status_bitmask`** keep that name on the Dire-team row
+  fact today. `match_date` is at least guaranteed non-null now — `fct_match`
+  filters out any row where it's null before loading, rather than loading a
+  bad row and only catching it via a test.
+- **`fct_match_side_performance.radiant_tower_status_bitmask` /
+  `radiant_barracks_status_bitmask`** keep that name on the Dire-side row
   too (the model unions two near-identical CTEs positionally) — holds the
-  right value for each team, just a misleading column name worth renaming
-  to something team-neutral.
+  right value for each side, just a misleading column name worth renaming
+  to something side-neutral.
+
+Fixed since first found (see `docs/sttm_staging_to_mart.xlsx` for the
+resolution detail on each): `fct_match_player` no longer silently drops
+private-profile players (was an inner join on a pre-coalesced `account_id`
+that could never match `dim_player`'s Unknown row; now a left join +
+post-join coalesce); `fct_match.winner_side_id`, `fct_match_player.side_id`,
+and `fct_match_side_performance.side_id` all resolve cleanly against
+`dim_side.side_id` (was a hash/plain-int type mismatch; fixed by un-hashing
+`dim_side.side_id` instead of hashing the fact-side columns);
+`fct_match_player.match_player_id` no longer collides across
+private-profile players in the same match (was hashed from `account_id`,
+now from `player_slot`, which is unique per match regardless of profile
+privacy).
 
 See `docs/sttm_staging_to_mart.xlsx` (flagged orange) for the full detail
-on each of these, row by row.
+on the issues still open.
 
 ## 📈 Business Questions & Key Metrics
 
@@ -240,6 +265,8 @@ with the reasoning behind them.
 | 3 | `dim_hero` and `dim_item` keep a history of changes (SCD Type 2) instead of overwriting old values the way every other dimension here does. | Heroes get reworked and items get rebalanced almost every Dota 2 patch — a hero's role or an item's cost today isn't necessarily what it was when an older match was played. Keeping history means a match's stats always reflect the hero or item as it actually was back then, not as it is now. |
 | 4 | `dim_hero`'s history is built with a dbt snapshot sitting on top of a staging model materialized as `ephemeral`, using the snapshot's `check` strategy rather than `timestamp`. (`dim_item` follows the same pattern.) | Ephemeral means the staging step never needs its own table in Snowflake — its only job is feeding the snapshot. `check` was the right call because reference data here gets reloaded by replacing it wholesale each run, which stamps every row with a new load timestamp whether or not anything actually changed — a `timestamp` strategy would have recorded a "change" on every single run, for every hero. `check` instead compares the real tracked columns and only records a new version when something genuinely did. |
 | 5 | Tests deliberately overlap across layers — e.g. `source_hero_id` is checked for uniqueness in staging, again in the snapshot (scoped to the currently active version), and again in `dim_hero`. In a production setting this redundancy has a real warehouse-compute cost, and the usual trade-off is to test a given invariant once, at the layer closest to where it could first break, rather than re-paying for it downstream. | This is a learning project, so the layered tests are left in on purpose — the point is to see directly how a dbt snapshot's SCD Type 2 merge can silently break (duplicate business key, missing `dbt_valid_to` close) and to catch it at every layer while learning, not to run the leanest possible test suite. |
+| 6 | **Trade-off: denormalized conformed-dimension keys on child facts, instead of a fact-to-fact relationship.** `fct_match_player` and `fct_match_side_performance` both carry their own copies of `region_id`, `lobby_type_id`, `game_mode_id`, `match_date`, and `patch` — the same columns already on `fct_match` — rather than relating to `fct_match` directly in Power BI and inheriting those filters through it. | Power BI (like any Tabular model) doesn't support two active relationship paths between the same two tables, and a fact-to-fact relationship here would create exactly that ambiguity once both the child fact and `fct_match` need to relate to the same dimension (`dim_region`, `dim_game_mode`, etc.) — the standard fix is a single-direction 1:* relationship from each conformed dimension straight to every fact that needs it, which means the filtering keys have to physically live on each fact. `match_id` itself stays a degenerate dimension (no separate `dim_match` — it has no descriptive text attributes of its own once date, game mode, and lobby type are pulled into their own dimensions) and is kept as the real `fct_match`-to-child-fact join for anything that still needs row-level traceability. The actual trade-off: a handful of denormalized integer/date columns, repeated across thousands of player rows, costs negligible storage under Snowflake's columnar compression — far cheaper than either an ambiguous relationship or a reporting view that recomputes the join on every Power BI refresh. What's deliberately **not** copied onto the child facts: any of `fct_match`'s own numeric measures (`duration_min`, `radiant_kill_count`, `dire_kill_count`, etc.) — summing a parent-level metric that's been copied onto 10 player rows per match would silently inflate it 10x. |
+| 7 | `fct_match_side_performance` decodes the raw 11-bit tower bitmask and 6-bit barracks bitmask into named booleans (`top_tier_1`, `ancient_bottom`, `top_melee`, etc.) using Snowflake's `GETBIT(bitmask, bit_index)`, inside the dbt transformation, rather than leaving `radiant_tower_status_bitmask`/`radiant_barracks_status_bitmask` as raw integers for Power BI to decode. | Bitwise decoding isn't something DAX does cleanly or efficiently at query time, and doing it once per row in SQL (on an incremental table, so it only runs against new/changed rows) is far cheaper than re-evaluating bit logic in every visual on every refresh. It also means the decoded flags carry real names Power BI users can filter/slice on directly, instead of a report author needing to know what each bit position means. |
 
 ## 🚧 Status
 
