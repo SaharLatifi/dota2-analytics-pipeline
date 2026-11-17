@@ -1,0 +1,188 @@
+models:
+  - name: fct_match_side_performance
+    description: >
+      Match-side-performance fact (renamed from fct_match_team_performance —
+      "team" in Dota 2 usually means a pro organization, while this fact is
+      actually grained at Radiant/Dire, the two "sides" of a match) — one row
+      per side per match (two rows per match), built by unioning two
+      structurally identical CTEs off of fct_match. Decodes the raw
+      tower/barracks status bitmasks into per-structure booleans and rollup
+      counts. Incremental/merge on match_performance_team_id, filtered each
+      run to dlt_load_id > the max already in the table.
+    columns:
+      - name: match_performance_team_id
+        description: >
+          Surrogate key, hashed from (match_id, '1' or '2' literal depending
+          on side). Still named match_performance_team_id (not renamed to
+          match_performance_side_id) — out of scope for this rename, flagged
+          for later if full consistency is wanted.
+        data_tests:
+          - not_null
+          - unique
+      - name: match_id
+        description: FK to fct_match.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_match')
+                field: match_id
+      - name: side_id
+        description: Literal 1 (Radiant) or 2 (Dire). Resolves directly to dim_side.side_id, which is deliberately kept un-hashed for this reason.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_side')
+                field: side_id
+      - name: is_winner
+        description: True if this side won the match.
+      - name: region_id
+        description: >
+          FK to dim_region, duplicated from fct_match so this fact can relate
+          to the conformed dimension directly — Power BI data models shouldn't
+          have active fact-to-fact relationships (dim_region → fct_match →
+          fct_match_side_performance would be an indirect, easily-broken path).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_region')
+                field: region_id
+      - name: lobby_type_id
+        description: FK to dim_lobby_type, duplicated from fct_match for the same direct-relationship reason as region_id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_lobby_type')
+                field: lobby_type_id
+      - name: game_mode_id
+        description: FK to dim_game_mode, duplicated from fct_match for the same direct-relationship reason as region_id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_game_mode')
+                field: game_mode_id
+      - name: match_date
+        description: The match's date, duplicated from fct_match so this fact can relate to dim_dates directly (on match_date = date_day) instead of through fct_match.
+        data_tests:
+          - not_null
+      - name: patch
+        description: Dota 2 patch identifier, duplicated from fct_match. Dashboard filter only, no lookup dimension.
+      - name: top_tier_1
+        description: Tower standing/destroyed flag, decoded from the team's own tower status bitmask (bit 0).
+        data_tests:
+          - not_null
+      - name: top_tier_2
+        description: Tower flag, bit 1.
+        data_tests:
+          - not_null
+      - name: top_tier_3
+        description: Tower flag, bit 2.
+        data_tests:
+          - not_null
+      - name: middle_tier_1
+        description: Tower flag, bit 3.
+        data_tests:
+          - not_null
+      - name: middle_tier_2
+        description: Tower flag, bit 4.
+        data_tests:
+          - not_null
+      - name: middle_tier_3
+        description: Tower flag, bit 5.
+        data_tests:
+          - not_null
+      - name: bottom_tier_1
+        description: Tower flag, bit 6.
+        data_tests:
+          - not_null
+      - name: bottom_tier_2
+        description: Tower flag, bit 7.
+        data_tests:
+          - not_null
+      - name: bottom_tier_3
+        description: Tower flag, bit 8.
+        data_tests:
+          - not_null
+      - name: ancient_top
+        description: Tower flag, bit 9.
+        data_tests:
+          - not_null
+      - name: ancient_bottom
+        description: Tower flag, bit 10.
+        data_tests:
+          - not_null
+      - name: top_melee
+        description: Barracks standing/destroyed flag, decoded from the team's own barracks status bitmask (bit 0).
+        data_tests:
+          - not_null
+      - name: top_ranged
+        description: Barracks flag, bit 1.
+        data_tests:
+          - not_null
+      - name: middle_melee
+        description: Barracks flag, bit 2.
+        data_tests:
+          - not_null
+      - name: middle_ranged
+        description: Barracks flag, bit 3.
+        data_tests:
+          - not_null
+      - name: bottom_melee
+        description: Barracks flag, bit 4.
+        data_tests:
+          - not_null
+      - name: bottom_ranged
+        description: Barracks flag, bit 5.
+        data_tests:
+          - not_null
+      - name: total_tower_count
+        description: Sum of the 11 decoded tower booleans — towers still standing for this team at match end.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 11
+                inclusive: true
+      - name: total_barracks_count
+        description: Sum of the 6 decoded barracks booleans — barracks still standing for this team at match end.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 6
+                inclusive: true
+      - name: kill_count
+        description: This team's total hero kills. Already range-checked upstream on fct_match; nullable if the upstream fct_match column was null for this match.
+      - name: radiant_tower_status_bitmask
+        description: >
+          FLAGGED — misleading name. Holds the raw tower bitmask for
+          WHICHEVER team this row is (Radiant or Dire), not necessarily
+          Radiant's — the two CTEs are combined positionally and both keep
+          this column name. Not a correctness bug (the decoded per-tower
+          booleans above are computed correctly per side) — just a confusing
+          raw passthrough name worth renaming to something team-neutral
+          (e.g. tower_status_bitmask) if revisited.
+      - name: radiant_barracks_status_bitmask
+        description: Same naming caveat as radiant_tower_status_bitmask above — holds this row's own team's raw barracks bitmask, not necessarily Radiant's.
+      - name: dlt_row_id
+        description: dlt's unique row id, carried through for lineage.
+        data_tests:
+          - not_null
+      - name: dlt_load_id
+        description: Drives the incremental filter — must stay in the final select.
+        data_tests:
+          - not_null
+      - name: created_at
+        description: Set once on insert — excluded from merge_exclude_columns, not overwritten on a re-merge.
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Refreshed on every re-merge of an existing row.
+        data_tests:
+          - not_null

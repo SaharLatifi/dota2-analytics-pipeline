@@ -31,14 +31,3 @@ with
 
 select *
 from enriched_date_spine
-
-union all
-
-select
-    '-1' as date_id,
-    cast(null as date) as date_day,
-    cast(null as number) as year_number,
-    cast(null as number) as month_number,
-    cast(null as number) as day_number,
-    cast(null as boolean) as is_weekend,
-    'Unknown' as business_season

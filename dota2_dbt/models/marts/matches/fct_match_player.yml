@@ -1,0 +1,170 @@
+models:
+  - name: fct_match_player
+    description: >
+      Match-player fact — one row per player per match. Incremental/merge on
+      match_player_id, filtered each run to dlt_load_id > the max already in
+      the table. Joins to fct_match on staging_match_id (not source_match_id)
+      to avoid double-counting players from duplicated match re-fetches.
+    columns:
+      - name: match_player_id
+        description: >
+          Surrogate key, hashed from (match_id, player_slot). Originally
+          hashed from (match_id, account_id), which collided whenever two or
+          more private-profile players (all null account_id) shared a match
+          — confirmed for real: 10 of 51 matches in this data have all 10
+          players private, which collapsed every one of their rows onto the
+          same key. player_slot is unique per match regardless of profile
+          privacy, so it doesn't have this problem.
+        data_tests:
+          - not_null
+          - unique
+      - name: match_id
+        description: FK to fct_match.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_match')
+                field: match_id
+      - name: staging_match_player_id
+        description: Traces to the exact staging row this player-match came from.
+        data_tests:
+          - not_null
+      - name: player_id
+        description: >
+          FK to dim_player — resolved via left join on account_id, coalesced
+          to the Unknown row ('-1') when account_id is null (private profile)
+          or unresolved, so this is never actually null. Fixed from an
+          earlier bug where an inner join on a pre-coalesced account_id
+          (coalesce(account_id, -1)) never matched dim_player's Unknown row
+          (which stores account_id as null, not -1) — that silently dropped
+          every private-profile player-match row until this join was changed
+          to left join + a post-join coalesce.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: rank_bracket_id
+        description: >
+          FLAGGED — still the raw source_rank_bracket_id (1-8) carried
+          straight through from staging, never joined to dim_rank_bracket.
+          dim_rank_bracket.rank_bracket_id is a hashed TEXT surrogate key, so
+          this column can't be used as an FK to it in its current form —
+          needs the same hash-lookup treatment hero_id already got via
+          dim_hero. No relationships test added until that's resolved.
+      - name: rank_star
+        description: Star within the rank bracket (0-5). Already range-checked upstream. Not a dimensional FK, just an attribute.
+      - name: player_slot
+        description: The player's slot in the match. Already accepted_values + uniqueness-checked upstream.
+        data_tests:
+          - not_null
+      - name: hero_id
+        description: FK to dim_hero — resolved via inner join on source_hero_id to dim_hero's current (dbt_valid_to is null) version.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_hero')
+                field: hero_id
+      - name: side_id
+        description: 1 (Radiant) or 2 (Dire), derived from is_radiant. Resolves directly to dim_side.side_id, which is deliberately kept un-hashed for this reason.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_side')
+                field: side_id
+      - name: is_winner
+        description: True if this player's side won the match. Derived from (is_radiant = radiant_win), matching fct_match_side_performance.is_winner — added so player-level stats can be sliced by win/loss without joining through fct_match_side_performance.
+        data_tests:
+          - not_null
+      - name: region_id
+        description: >
+          FK to dim_region, duplicated from fct_match so this fact can relate
+          to the conformed dimension directly — Power BI data models shouldn't
+          have active fact-to-fact relationships (dim_region → fct_match →
+          fct_match_player would be an indirect, easily-broken path).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_region')
+                field: region_id
+      - name: lobby_type_id
+        description: FK to dim_lobby_type, duplicated from fct_match for the same direct-relationship reason as region_id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_lobby_type')
+                field: lobby_type_id
+      - name: game_mode_id
+        description: FK to dim_game_mode, duplicated from fct_match for the same direct-relationship reason as region_id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_game_mode')
+                field: game_mode_id
+      - name: match_date
+        description: The match's date, duplicated from fct_match so this fact can relate to dim_dates directly (on match_date = date_day) instead of through fct_match.
+        data_tests:
+          - not_null
+      - name: patch
+        description: Dota 2 patch identifier, duplicated from fct_match. Dashboard filter only, no lookup dimension.
+      - name: kills
+        description: Enemy hero kills. Already range-checked upstream.
+      - name: deaths
+        description: Deaths. Already range-checked upstream.
+      - name: assists
+        description: Assisted kills. Already range-checked upstream.
+      - name: kda
+        description: OpenDota-computed KDA score. Already range-checked upstream.
+      - name: gold_per_min
+        description: Average gold per minute. Already range-checked upstream.
+      - name: xp_per_min
+        description: Average XP per minute. Already range-checked upstream.
+      - name: level
+        description: Hero level at match end. Already range-checked upstream.
+      - name: net_worth
+        description: Final net worth. Already range-checked upstream.
+      - name: last_hits
+        description: Last hits on creeps. Already range-checked upstream.
+      - name: denies
+        description: Denies. Already range-checked upstream.
+      - name: hero_damage
+        description: Damage dealt to enemy heroes. Already range-checked upstream.
+      - name: tower_damage
+        description: Damage dealt to towers. Already range-checked upstream.
+      - name: teamfight_participation
+        description: Parser-only field, mostly null/zero until OpenDota fully parses a match.
+      - name: towers_killed
+        description: Parser-only field, mostly null/zero until OpenDota fully parses a match.
+      - name: roshans_killed
+        description: Parser-only field, mostly null/zero until OpenDota fully parses a match.
+      - name: lane
+        description: Raw numeric lane code — OpenDota's code-to-label mapping is still unconfirmed, so this stays undecoded.
+      - name: lane_role
+        description: Raw numeric lane-role code — same open item as lane.
+      - name: lane_efficiency
+        description: Parser-only field, mostly null/zero until OpenDota fully parses a match.
+      - name: actions_per_min
+        description: Average actions per minute. Already range-checked upstream.
+      - name: dlt_load_id
+        description: Drives the incremental filter — must stay in the final select.
+        data_tests:
+          - not_null
+      - name: dlt_row_id
+        description: dlt's unique row id, carried through for lineage.
+        data_tests:
+          - not_null
+      - name: created_at
+        description: Set once on insert — excluded from merge_exclude_columns, not overwritten on a re-merge.
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Refreshed on every re-merge of an existing row.
+        data_tests:
+          - not_null

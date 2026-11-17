@@ -1,0 +1,45 @@
+models:
+  - name: dim_side
+    description: >
+      Side dimension — Radiant and Dire, the two sides of a Dota 2 match
+      (renamed from dim_team/team_id: in Dota 2, "team" usually refers to a
+      pro organization, while Radiant/Dire are "sides" — the concept this
+      dimension actually models). Hand-authored 2-row seed, not sourced from
+      the API. No synthetic 'Unknown' row here (unlike the other master-data
+      dimensions) — every match player is always on one of exactly these two
+      sides, so there's no orphan case to cover.
+    columns:
+      - name: side_id
+        description: >
+          Same value as source_side_id, kept un-hashed on purpose (unlike
+          every other dimension's surrogate key) — fct_match.winner_side_id,
+          fct_match_player.side_id, and fct_match_side_performance.side_id
+          are all plain 1/2 literals derived from is_radiant/radiant_win,
+          not a hash, so this column has to match that representation for
+          the FK to actually resolve.
+        data_tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: [1, 2]
+      - name: source_side_id
+        description: The side's natural key from the seed (1 = Radiant, 2 = Dire).
+        data_tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: [1, 2]
+      - name: side_name
+        description: Display name of the side (Radiant or Dire).
+        data_tests:
+          - not_null
+      - name: created_at
+        description: When this row was last (re)built — this table is fully replaced every run, not merged, so there's no separate "first inserted" moment to track.
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Same as created_at — identical on every row since the whole table is rebuilt together.
+        data_tests:
+          - not_null

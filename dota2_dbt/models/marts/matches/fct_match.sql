@@ -55,11 +55,11 @@ with source_matches as
         started_at,
         duration_min,
         radiant_win, 
-        case --radiant team id = 1, dire team id = 2
-            when radiant_win = true then 1 
+        case --radiant side id = 1, dire side id = 2
+            when radiant_win = true then 1
             when radiant_win = false then 2
             else null
-        end as winner_team_id,
+        end as winner_side_id,
         radiant_tower_status_bitmask,
         dire_tower_status_bitmask,
         radiant_barracks_status_bitmask,
@@ -86,4 +86,7 @@ with source_matches as
 )
 
 select    *
-from match_with_surrogate_key 
+from match_with_surrogate_key
+-- match_date is a required attribute, not an FK with an Unknown fallback — a null
+-- here is bad source data, so the row is dropped rather than loaded into the mart.
+where match_date is not null 

@@ -18,15 +18,20 @@ def read_public_matches():
         role=os.getenv("DESTINATION__SNOWFLAKE__CREDENTIALS__ROLE")
     )
 
-    # Matches not yet successfully processed (new or previously failed), oldest first, capped per run
+    # Matches not yet successfully processed (new or previously failed/stuck), capped per run.
+    # Never-attempted matches (status is null) are ordered ahead of retries so a batch of
+    # matches that keep failing/never reach 'success' can't occupy every slot forever and
+    # starve out matches that haven't been tried even once. attempts < 3 caps retries for
+    # the same reason — past that, a match is left alone rather than retried indefinitely.
     query = """
     select m.match_id, m._dlt_id as dlt_id , s.status , s.attempts ,  d.load_id
     from public_matches m
         inner join _dlt_loads d on m._dlt_load_id = d.load_id
         left join control_match_processing_status  s on m._dlt_id = s.dlt_id
-    where s.status is  null or s.status <>'success'
-    order by d.inserted_at , m.match_id
-    limit 50;
+    where (s.status is  null or s.status <>'success')
+        and coalesce(s.attempts, 0) < 3
+    order by case when s.status is null then 0 else 1 end, d.inserted_at , m.match_id
+    limit 200;
     """
     try:
         cursor = connection.cursor()

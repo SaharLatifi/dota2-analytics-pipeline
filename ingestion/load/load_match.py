@@ -153,15 +153,16 @@ def main():
                 table_name,
                 "append",
             )
-            # Only mark this truly "success" once OpenDota has actually parsed
-            # it — parsing happens async on OpenDota's side and isn't done on
-            # first fetch. Anything other than "success" stays eligible for
-            # read_public_matches() to pick up and retry on a later run, so an
-            # unparsed match keeps getting re-fetched until it comes back parsed.
-            is_parsed = match_data.get("od_data", {}).get("has_parsed", False)
+            # Success means the match was loaded, not that OpenDota has parsed it.
+            # Matches from the public-matches sample feed are generally never parsed
+            # unless a parse is explicitly requested from OpenDota (this pipeline
+            # doesn't do that), so gating success on has_parsed left matches stuck
+            # retrying forever and starving out every match that hadn't been tried
+            # yet. is_parsed is still carried through into the match data itself
+            # (see stg_matches__matches / fct_match.is_parsed) for anyone who wants
+            # to filter on it downstream.
             update_match_status(
-                control_table_name, row.DLT_ID, row.MATCH_ID,
-                "success" if is_parsed else "pending_parse"
+                control_table_name, row.DLT_ID, row.MATCH_ID, "success"
             )
         except Exception as e:
             print(f"Error loading match {row.MATCH_ID}: {e}")

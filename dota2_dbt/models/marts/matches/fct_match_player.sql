@@ -9,17 +9,23 @@
 
 with match_player as
 (
-    select 
+    select
         m.match_id,
         mp.source_match_id,
-        mp.staging_match_id,      
+        mp.staging_match_id,
         mp.staging_match_player_id  ,
         mp.account_id,
         rank_bracket_id ,
         rank_star ,
         player_slot,
-        h.hero_id, 
+        h.hero_id,
         is_radiant,
+        m.radiant_win,
+        m.region_id,
+        m.lobby_type_id,
+        m.game_mode_id,
+        m.match_date,
+        m.patch,
         kills,
         deaths,
         assists,
@@ -51,7 +57,7 @@ with match_player as
         
 ) , match_player_with_surrogate_key as (
     select 
-        {{ dbt_utils.generate_surrogate_key(['match_id', 'mp.account_id']) }} as match_player_id,
+        {{ dbt_utils.generate_surrogate_key(['match_id', 'mp.player_slot']) }} as match_player_id,
         match_id,
         staging_match_player_id ,
         coalesce(p.player_id, '-1') as player_id,
@@ -59,11 +65,17 @@ with match_player as
         rank_star ,
         player_slot,
         hero_id,
-        case --radiant team id = 1, dire team id = 2
-            when is_radiant = true then 1 
+        case --radiant side id = 1, dire side id = 2
+            when is_radiant = true then 1
             when is_radiant = false then 2
             else null
-        end as team_id,
+        end as side_id,
+        is_radiant = radiant_win as is_winner,
+        region_id,
+        lobby_type_id,
+        game_mode_id,
+        match_date,
+        patch,
         kills,
         deaths,
         assists,

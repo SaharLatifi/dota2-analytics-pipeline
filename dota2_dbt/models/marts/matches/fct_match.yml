@@ -1,0 +1,125 @@
+models:
+  - name: fct_match
+    description: >
+      Match fact — one row per match. Incremental/merge on match_id, filtered
+      each run to dlt_load_id > the max already in the table. Raw matches are
+      append-only and can contain duplicate re-fetches of the same
+      source_match_id; this model dedups with
+      row_number() over (partition by source_match_id order by dlt_load_id desc) = 1
+      before building match_id, so downstream models must join to this table
+      on staging_match_id, never source_match_id, to avoid double-counting
+      the duplicated matches.
+    columns:
+      - name: match_id
+        description: Surrogate key, hashed from source_match_id (post-dedup).
+        data_tests:
+          - not_null
+          - unique
+      - name: staging_match_id
+        description: Traces to the exact staging/raw row this version came from. The join key every downstream fact (fct_match_player, fct_match_side_performance) must use — not source_match_id, which can repeat across duplicate re-fetches.
+        data_tests:
+          - not_null
+      - name: source_match_id
+        description: OpenDota's match id, the natural/business key. Unique here only because of the dedup row_number() above — it repeats in staging for ~37 duplicated matches.
+        data_tests:
+          - not_null
+          - unique
+      - name: match_date
+        description: >
+          The date the match was played. Required — rows with a null
+          match_date are filtered out of the final select before they reach
+          this table, so a not_null failure here would mean the filter
+          itself broke, not that bad data slipped through. Not currently
+          joined to dim_dates — dim_dates exists as a generated spine but
+          nothing resolves this column to it yet, so date-dimension
+          attributes (business_season, is_weekend) aren't usable from this
+          fact today.
+        data_tests:
+          - not_null
+      - name: started_at
+        description: Timestamp the match started.
+      - name: duration_min
+        description: Match duration in minutes. Already range-checked upstream (min 0).
+      - name: radiant_win
+        description: True if Radiant won.
+        data_tests:
+          - not_null
+      - name: winner_side_id
+        description: >
+          1 (Radiant) or 2 (Dire), derived from radiant_win. dim_side.side_id
+          is deliberately kept un-hashed (same 1/2 value as source_side_id)
+          specifically so this column resolves to it directly.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_side')
+                field: side_id
+      - name: radiant_tower_status_bitmask
+        description: Raw 11-bit tower bitmask. Already range-checked upstream (0-2047).
+      - name: dire_tower_status_bitmask
+        description: Raw 11-bit tower bitmask. Already range-checked upstream (0-2047).
+      - name: radiant_barracks_status_bitmask
+        description: Raw 6-bit barracks bitmask. Already range-checked upstream (0-63).
+      - name: dire_barracks_status_bitmask
+        description: Raw 6-bit barracks bitmask. Already range-checked upstream (0-63).
+      - name: radiant_kill_count
+        description: Total Radiant hero kills. Already range-checked upstream.
+      - name: dire_kill_count
+        description: Total Dire hero kills. Already range-checked upstream.
+      - name: first_blood_time_sec
+        description: Seconds from match start to first blood. Already range-checked upstream.
+      - name: human_players
+        description: Number of human players (10 = full match). Already range-checked upstream (0-10).
+      - name: lobby_type_id
+        description: >
+          FK to dim_lobby_type — resolved via left join on source_lobby_type_id,
+          coalesced to the Unknown row ('-1') when unmatched or null, so this
+          is never actually null and always resolves to a real dim_lobby_type row.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_lobby_type')
+                field: lobby_type_id
+      - name: game_mode_id
+        description: FK to dim_game_mode — same resolution pattern as lobby_type_id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_game_mode')
+                field: game_mode_id
+      - name: region_id
+        description: FK to dim_region — same resolution pattern as lobby_type_id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_region')
+                field: region_id
+      - name: patch
+        description: Dota 2 patch identifier. Dashboard filter only, no lookup dimension.
+      - name: parse_version
+        description: OpenDota's parsed-data format version. Used only by the upstream staging dedup logic, not this model's own dedup rule.
+      - name: is_parsed
+        description: Whether OpenDota has fully parsed this match's replay. Kept for traceability/filtering only — not used as a dedup tiebreaker here (dedup is purely "most recently loaded").
+      - name: dlt_row_id
+        description: dlt's unique row id, carried through for lineage.
+        data_tests:
+          - not_null
+      - name: dlt_load_id
+        description: >
+          Drives the incremental filter and the merge's own max(dlt_load_id)
+          lookup against {{ this }} — must stay in the final select or the
+          incremental filter breaks against the existing physical table.
+        data_tests:
+          - not_null
+      - name: created_at
+        description: Set once on insert — excluded from merge_exclude_columns, so it is NOT overwritten on a re-merge of an existing match_id. Genuinely "first inserted" here.
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Refreshed on every re-merge of an existing row — "last touched by a run."
+        data_tests:
+          - not_null
