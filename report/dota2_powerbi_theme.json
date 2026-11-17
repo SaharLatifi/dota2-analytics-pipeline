@@ -1,0 +1,142 @@
+{
+  "name": "Dota 2 Match Analytics",
+  "dataColors": [
+    "#C9A45C",
+    "#4FA3B8",
+    "#9B86C9",
+    "#C97A93",
+    "#D9825B",
+    "#8FB08A",
+    "#6B7480",
+    "#F2DC9C"
+  ],
+  "background": "#161B21",
+  "foreground": "#E6DFCF",
+  "tableAccent": "#C9A45C",
+  "good": "#4FA3B8",
+  "neutral": "#4A525C",
+  "bad": "#D9825B",
+  "maximum": "#F2DC9C",
+  "center": "#8C7745",
+  "minimum": "#2E3540",
+  "null": "#2C343D",
+  "textClasses": {
+    "callout": {
+      "fontSize": 28,
+      "fontFace": "Segoe UI Semibold",
+      "color": "#E6DFCF"
+    },
+    "title": {
+      "fontSize": 12,
+      "fontFace": "Segoe UI Semibold",
+      "color": "#C9A45C"
+    },
+    "header": {
+      "fontSize": 11,
+      "fontFace": "Segoe UI Semibold",
+      "color": "#E6DFCF"
+    },
+    "label": {
+      "fontSize": 10,
+      "fontFace": "Segoe UI",
+      "color": "#8C939B"
+    }
+  },
+  "visualStyles": {
+    "*": {
+      "*": {
+        "background": [
+          {
+            "show": false,
+            "transparency": 100
+          }
+        ],
+        "border": [
+          {
+            "show": false
+          }
+        ],
+        "dropShadow": [
+          {
+            "show": false
+          }
+        ],
+        "title": [
+          {
+            "fontColor": {
+              "solid": {
+                "color": "#C9A45C"
+              }
+            }
+          }
+        ],
+        "categoryAxis": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#8C939B"
+              }
+            },
+            "titleColor": {
+              "solid": {
+                "color": "#8C939B"
+              }
+            },
+            "gridlineShow": false
+          }
+        ],
+        "valueAxis": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#8C939B"
+              }
+            },
+            "titleColor": {
+              "solid": {
+                "color": "#8C939B"
+              }
+            },
+            "gridlineShow": true,
+            "gridlineColor": {
+              "solid": {
+                "color": "#2C343D"
+              }
+            }
+          }
+        ],
+        "legend": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#8C939B"
+              }
+            }
+          }
+        ],
+        "labels": [
+          {
+            "color": {
+              "solid": {
+                "color": "#E6DFCF"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "page": {
+      "*": {
+        "outspace": [
+          {
+            "color": {
+              "solid": {
+                "color": "#0D1014"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

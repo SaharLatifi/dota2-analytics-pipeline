@@ -21,6 +21,13 @@ models:
           - unique
       - name: year_number
         description: Calendar year of date_day.
+      - name: week_number
+        description: ISO-ish calendar week number (1-53) of date_day, per Snowflake's WEEKOFYEAR.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 53
       - name: month_number
         description: Calendar month (1-12) of date_day.
         data_tests:
@@ -28,6 +35,8 @@ models:
               arguments:
                 min_value: 1
                 max_value: 12
+      - name: month_name
+        description: Abbreviated month name (e.g. 'Jan') of date_day.
       - name: day_number
         description: Day of month (1-31) of date_day.
         data_tests:
@@ -35,8 +44,28 @@ models:
               arguments:
                 min_value: 1
                 max_value: 31
+      - name: day_of_week
+        description: >
+          Day of week, 0 (Sunday) through 6 (Saturday), per Snowflake's
+          default WEEK_START session setting.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 6
+      - name: day_of_year
+        description: Day of year (1-366) of date_day.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 366
       - name: is_weekend
-        description: Whether date_day falls on a Saturday or Sunday.
+        description: >
+          Whether date_day falls on a Saturday or Sunday. FIXED this pass —
+          previously checked day(date_day), i.e. day-of-month, not
+          day-of-week, so it wasn't actually detecting weekends; now derived
+          from day_of_week.
       - name: business_season
         description: Rough seasonal bucket (Holiday/Summer/Spring/Off Season) used for reporting.
         data_tests:

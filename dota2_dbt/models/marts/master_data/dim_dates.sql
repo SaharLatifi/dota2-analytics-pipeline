@@ -15,9 +15,13 @@ with
             * , 
             year(date_day) as year_number ,
             month(date_day) as month_number ,
+            monthname(date_day) as month_name ,
             day(date_day) as day_number  ,
+            dayofweek(date_day) as day_of_week , -- 0 = Sunday ... 6 = Saturday (Snowflake default WEEK_START)
+            dayofyear(date_day) as day_of_year ,
+            weekofyear(date_day) as week_number ,
             case
-                when day(date_day) in (6, 7) then true
+                when dayofweek(date_day) in (0, 6) then true
                 else false
             end as is_weekend ,
            case
