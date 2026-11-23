@@ -221,9 +221,13 @@ sources:
                     min_value: 0
                     inclusive: true              
           - name: kda
-            description: OpenDota-computed overall kill/death/assist performance score
+            description: >
+              OpenDota-computed overall kill/death/assist performance score.
+              Only populated for parsed matches (od_data__has_parsed = true)
+              — OpenDota doesn't compute it from basic match data the way it
+              does kills/deaths/assists/gold_per_min, so it's null for most
+              rows from the public-matches feed, which is rarely parsed.
             data_tests:
-              - not_null
               - dbt_utils.accepted_range:
                   arguments:
                     min_value: 0

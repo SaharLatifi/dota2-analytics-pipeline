@@ -1,0 +1,56 @@
+models:
+  - name: fct_player_activity_streak
+    description: >
+      Player activity-streak fact — one row per run of consecutive calendar
+      days on which a player played at least one match. Built from
+      fct_match_player with a gaps-and-islands pattern: distinct
+      (player_id, match_date) pairs are numbered per player, and
+      match_date - (row_number - 1) is constant across consecutive days, so
+      grouping on it yields one row per streak. A single isolated day is a
+      streak of length 1. Private-profile players (player_id = '-1') are
+      excluded, since they can't be told apart from each other. Materialized
+      as a full table rebuild, not incremental, because a streak can span
+      more than one load batch.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ['player_id', 'streak_start_date']
+    columns:
+      - name: player_activity_streak_id
+        description: Surrogate key, hashed from (player_id, streak_start_date).
+        data_tests:
+          - not_null
+          - unique
+      - name: player_id
+        description: FK to dim_player. Never '-1' (private profiles are excluded).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: streak_start_date
+        description: First day of the streak.
+        data_tests:
+          - not_null
+      - name: streak_end_date
+        description: Last day of the streak.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= streak_start_date"
+      - name: streak_length_days
+        description: >
+          Number of consecutive days in the streak (always equal to
+          streak_end_date - streak_start_date + 1).
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                inclusive: true
+      - name: created_at
+        description: Timestamp the row was built.
+      - name: updated_at
+        description: Timestamp the row was last rebuilt.

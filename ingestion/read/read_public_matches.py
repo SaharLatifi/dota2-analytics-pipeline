@@ -23,6 +23,8 @@ def read_public_matches():
     # matches that keep failing/never reach 'success' can't occupy every slot forever and
     # starve out matches that haven't been tried even once. attempts < 3 caps retries for
     # the same reason — past that, a match is left alone rather than retried indefinitely.
+    # Within each of those two groups, most-recently-loaded first (desc) so the mart fills in
+    # with recent matches first instead of working strictly oldest-to-newest.
     query = """
     select m.match_id, m._dlt_id as dlt_id , s.status , s.attempts ,  d.load_id
     from public_matches m
@@ -30,7 +32,7 @@ def read_public_matches():
         left join control_match_processing_status  s on m._dlt_id = s.dlt_id
     where (s.status is  null or s.status <>'success')
         and coalesce(s.attempts, 0) < 3
-    order by case when s.status is null then 0 else 1 end, d.inserted_at , m.match_id
+    order by case when s.status is null then 0 else 1 end, d.inserted_at desc, m.match_id desc
     limit 200;
     """
     try:
