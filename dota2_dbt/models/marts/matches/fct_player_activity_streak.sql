@@ -42,12 +42,22 @@ with player_match_date_dedup as
     group by player_id, streak_group_date
 )
 
+-- Latest match date in the data, used instead of current_date() so streaks
+-- aren't all marked inactive just because loads lag behind today.
+, latest_match_date as
+(
+    select max(match_date) as max_match_date
+    from {{ ref('fct_match_player') }}
+)
+
 select
     {{ dbt_utils.generate_surrogate_key(['player_id', 'streak_start_date']) }} as player_activity_streak_id,
     player_id,
     streak_start_date,
     streak_end_date,
     streak_length_days,
+    s.streak_end_date = l.max_match_date as is_current,
     current_timestamp() as created_at,
     current_timestamp() as updated_at
-from streaks
+from streaks s
+    cross join latest_match_date l

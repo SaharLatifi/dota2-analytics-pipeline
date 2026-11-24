@@ -50,6 +50,14 @@ models:
               arguments:
                 min_value: 1
                 inclusive: true
+      - name: is_current
+        description: >
+          True if the streak ends on the latest match_date in fct_match_player
+          (the data's as-of date, not today's date), i.e. the streak is still
+          ongoing as far as the loaded data shows. At most one current streak
+          per player.
+        data_tests:
+          - not_null
       - name: created_at
         description: Timestamp the row was built.
       - name: updated_at
